@@ -1,2 +1,4 @@
 sample/*
 build/*
+backend/lineage-server/Pipfile
+backend/lineage-server/Pipfile.lock

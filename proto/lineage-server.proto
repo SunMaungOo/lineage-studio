@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+enum ObjectType {
+    OBJECT_TYPE_UNSPECIFIC = 0;
+    OBJECT_TYPE_VIEW = 1;
+    OBJECT_TYPE_PROCEDURE = 2;
+}
+
+message ObjectInfo {
+    string name = 1;
+    string sql = 2;
+    ObjectType object_type = 3;
+}
+
+message Lineage {
+    string target = 1;
+    repeated string source = 2;    
+}
+
+message ObjectLineage {
+    string name = 1;
+    repeated Lineage lineages = 2;
+}
+
+message LineageRequest {
+    repeated ObjectInfo objects = 1;
+}
+
+message LineageResponse {
+    repeated ObjectLineage lineages = 1;
+}
+
+service LineageService {
+    rpc GetLineage(LineageRequest) returns (LineageResponse);
+}
+
