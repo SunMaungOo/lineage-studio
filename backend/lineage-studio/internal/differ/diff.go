@@ -166,6 +166,12 @@ func ApplyLineage(initRepo *repo.Repo, lineage map[ObjectName]string) repo.Repo 
 
 		lineageHash = getMd5Hash(lineageValue)
 
+		//ignore if the lineage does not changes
+
+		if lineageHash == obj.LineageHash {
+			continue
+		}
+
 		hash := getMd5Hash(obj.DetailHash + lineageHash)
 
 		changeRepo.Detail.Objects = append(changeRepo.Detail.Objects, repo.ObjectInfo{
