@@ -183,9 +183,9 @@ func main() {
 
 	newRepo := differ.ApplyRepoChanges(&initRepo, changedObjects, lineages)
 
-	err = repo.SaveRepo(outputLocation, newRepo)
+	err = repo.SaveRepo(outputLocation, newRepo, true)
 
 	if err != nil {
-		log.Fatal("Error saving files")
+		log.Fatal(err)
 	}
 }

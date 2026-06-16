@@ -61,7 +61,7 @@ type Repo struct {
 	Detail RepoDetail
 }
 
-func SaveRepo(repoRootPath string, initRepo Repo) error {
+func SaveRepo(repoRootPath string, initRepo Repo, isOverwrite bool) error {
 
 	repoRootPath = filepath.Clean(repoRootPath)
 
@@ -75,8 +75,8 @@ func SaveRepo(repoRootPath string, initRepo Repo) error {
 
 	_, err = os.Stat(repoLocation)
 
-	if err == nil {
-		return fmt.Errorf("%v folder already exist.Cannot init the repo", repoLocation)
+	if err == nil && !isOverwrite {
+		return fmt.Errorf("%v folder already exist.Cannot save the repo without overwrite flag turn on", repoLocation)
 	}
 
 	err = saveMetadata(repoLocation, initRepo.Detail.Meta)

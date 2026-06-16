@@ -57,7 +57,7 @@ func main() {
 		DB:   hostInfo.Database,
 	}, views, procedures)
 
-	err = repo.SaveRepo(repoLocation, initRepo)
+	err = repo.SaveRepo(repoLocation, initRepo, false)
 
 	if err != nil {
 		log.Fatal(err)
