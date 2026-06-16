@@ -27,12 +27,12 @@ class ObjectInfo(_message.Message):
     def __init__(self, name: _Optional[str] = ..., sql: _Optional[str] = ..., object_type: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class Lineage(_message.Message):
-    __slots__ = ("target", "source")
+    __slots__ = ("target", "sources")
     TARGET_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SOURCES_FIELD_NUMBER: _ClassVar[int]
     target: str
-    source: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, target: _Optional[str] = ..., source: _Optional[_Iterable[str]] = ...) -> None: ...
+    sources: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, target: _Optional[str] = ..., sources: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ObjectLineage(_message.Message):
     __slots__ = ("name", "lineages")

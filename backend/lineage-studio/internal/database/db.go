@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/microsoft/go-mssqldb"
 )
@@ -45,25 +46,43 @@ routines.routine_name;
 
 `
 
+type ObjectType string
+
+const (
+	TypeView      ObjectType = "view"
+	TypeProcedure ObjectType = "procedure"
+)
+
 type ObjectInfo struct {
 	Schema     string
 	Name       string
 	Definition string
+	ObjectType ObjectType
 }
 
-func GetView(user string, password string, host string, database string) ([]ObjectInfo, error) {
-	return getObjectInfos(user, password, host, database, viewSql)
+type Credential struct {
+	User     string
+	Password string
 }
 
-func GetProcedure(user string, password string, host string, database string) ([]ObjectInfo, error) {
-	return getObjectInfos(user, password, host, database, procedureSql)
+type HostInfo struct {
+	Host     string
+	Database string
 }
 
-func getObjectInfos(user string, password string, host string, database string, objectInfoSql string) ([]ObjectInfo, error) {
+func GetView(credential Credential, host HostInfo) ([]ObjectInfo, error) {
+	return getObjectInfos(credential, host, viewSql, "view")
+}
+
+func GetProcedure(credential Credential, host HostInfo) ([]ObjectInfo, error) {
+	return getObjectInfos(credential, host, procedureSql, "procedure")
+}
+
+func getObjectInfos(credential Credential, host HostInfo, objectInfoSql string, objectType ObjectType) ([]ObjectInfo, error) {
 
 	var objects []ObjectInfo
 
-	connectionString := fmt.Sprintf("sqlserver://%v:%v@%v?database=%v", user, password, host, database)
+	connectionString := fmt.Sprintf("sqlserver://%v:%v@%v?database=%v", credential.User, credential.Password, host.Host, host.Database)
 
 	db, err := sql.Open("sqlserver", connectionString)
 
@@ -97,6 +116,8 @@ func getObjectInfos(user string, password string, host string, database string, 
 			return nil, err
 		}
 
+		object.ObjectType = objectType
+
 		objects = append(objects, object)
 
 		count = count + 1
@@ -108,4 +129,62 @@ func getObjectInfos(user string, password string, host string, database string, 
 	}
 
 	return objects, nil
+}
+
+func parseHostInfo(value string) (HostInfo, error) {
+
+	if !strings.Contains(value, "/") {
+		return HostInfo{}, fmt.Errorf("%v does not contain /", value)
+	}
+
+	lastIndex := strings.LastIndex(value, "/")
+
+	return HostInfo{
+		Host:     value[0:lastIndex],
+		Database: value[lastIndex+1:],
+	}, nil
+}
+
+func parseCredential(value string) (Credential, error) {
+
+	if !strings.Contains(value, ":") {
+		return Credential{}, fmt.Errorf("%v does not contain :", value)
+	}
+
+	lastIndex := strings.LastIndex(value, ":")
+
+	return Credential{
+		User:     value[0:lastIndex],
+		Password: value[lastIndex+1:],
+	}, nil
+
+}
+
+// format is user:password@host/database
+func ParseDatabaseInfo(value string) (HostInfo, Credential, error) {
+
+	if !strings.Contains(value, "@") {
+		return HostInfo{}, Credential{}, fmt.Errorf("%v does not contain @", value)
+	}
+
+	index := strings.Index(value, "@")
+
+	credentialStr := value[0:index]
+
+	hostInfoStr := value[index+1:]
+
+	hostInfo, err := parseHostInfo(hostInfoStr)
+
+	if err != nil {
+		return HostInfo{}, Credential{}, err
+	}
+
+	credential, err := parseCredential(credentialStr)
+
+	if err != nil {
+		return HostInfo{}, Credential{}, err
+	}
+
+	return hostInfo, credential, nil
+
 }

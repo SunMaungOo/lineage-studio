@@ -7,6 +7,9 @@ import sys
 from sqlglot import parse
 from lineage import find_parseable_ast,find_source_target_table
 from typing import List,Set
+import logging
+
+logging.getLogger("sqlglot").disabled = True
 
 def get_object_lineage(sources:Set[str],targets:List[str])->List[Lineage]:
 
@@ -14,11 +17,17 @@ def get_object_lineage(sources:Set[str],targets:List[str])->List[Lineage]:
 
     if len(sources)==0:
         return list()
-
+    
+    if len(targets)==0:
+        lineages.append(Lineage(
+            target="",
+            sources=sources
+        ))
+    
     for target in targets:
         lineages.append(Lineage(
             target=target,
-            source=sources
+            sources=sources
         ))
 
     return lineages
@@ -26,6 +35,8 @@ def get_object_lineage(sources:Set[str],targets:List[str])->List[Lineage]:
 class LineageServer(LineageServiceServicer):
     def GetLineage(self, request:LineageRequest, context)->LineageResponse:
 
+        print("Processing requests")
+        
         object_lineages:List[ObjectLineage] = list()
 
         for object in request.objects:
@@ -43,26 +54,30 @@ class LineageServer(LineageServiceServicer):
 
             elif object.object_type==ObjectType.OBJECT_TYPE_PROCEDURE:
 
-                processed_sql = extract_procedure(value=processed_sql)
+                processed_sql = extract_procedure(sql=processed_sql)
 
             else:
                 continue            
-        
-            asts = parse(sql=processed_sql,dialect="tsql")
+            
 
-            lineages:List[Lineage] = list()
+            try:
+                asts = parse(sql=processed_sql,dialect="tsql")
 
-            for ast in find_parseable_ast(asts=asts):
-                for sources,targets in find_source_target_table(ast=ast):
-                    lineages.extend(get_object_lineage(sources=sources,targets=targets))
+                lineages:List[Lineage] = list()
 
-            if len(lineages)==0:
+                for ast in find_parseable_ast(asts=asts):
+                    for sources,targets in find_source_target_table(ast=ast):
+                        lineages.extend(get_object_lineage(sources=sources,targets=targets))
+
+                if len(lineages)==0:
+                    continue
+
+                object_lineages.append(ObjectLineage(
+                    name=object.name,
+                    lineages=lineages
+                ))
+            except Exception:
                 continue
-
-            object_lineages.append(ObjectLineage(
-                name=object.name,
-                lineages=lineages
-            ))
                 
         return LineageResponse(lineages=object_lineages)
 

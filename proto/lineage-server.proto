@@ -14,7 +14,7 @@ message ObjectInfo {
 
 message Lineage {
     string target = 1;
-    repeated string source = 2;    
+    repeated string sources = 2;    
 }
 
 message ObjectLineage {

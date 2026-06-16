@@ -24,25 +24,25 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14lineage-server.proto\"I\n\nObjectInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0b\n\x03sql\x18\x02 \x01(\t\x12 \n\x0bobject_type\x18\x03 \x01(\x0e\x32\x0b.ObjectType\")\n\x07Lineage\x12\x0e\n\x06target\x18\x01 \x01(\t\x12\x0e\n\x06source\x18\x02 \x03(\t\"9\n\rObjectLineage\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x1a\n\x08lineages\x18\x02 \x03(\x0b\x32\x08.Lineage\".\n\x0eLineageRequest\x12\x1c\n\x07objects\x18\x01 \x03(\x0b\x32\x0b.ObjectInfo\"3\n\x0fLineageResponse\x12 \n\x08lineages\x18\x01 \x03(\x0b\x32\x0e.ObjectLineage*Y\n\nObjectType\x12\x1a\n\x16OBJECT_TYPE_UNSPECIFIC\x10\x00\x12\x14\n\x10OBJECT_TYPE_VIEW\x10\x01\x12\x19\n\x15OBJECT_TYPE_PROCEDURE\x10\x02\x32\x41\n\x0eLineageService\x12/\n\nGetLineage\x12\x0f.LineageRequest\x1a\x10.LineageResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14lineage-server.proto\"I\n\nObjectInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0b\n\x03sql\x18\x02 \x01(\t\x12 \n\x0bobject_type\x18\x03 \x01(\x0e\x32\x0b.ObjectType\"*\n\x07Lineage\x12\x0e\n\x06target\x18\x01 \x01(\t\x12\x0f\n\x07sources\x18\x02 \x03(\t\"9\n\rObjectLineage\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x1a\n\x08lineages\x18\x02 \x03(\x0b\x32\x08.Lineage\".\n\x0eLineageRequest\x12\x1c\n\x07objects\x18\x01 \x03(\x0b\x32\x0b.ObjectInfo\"3\n\x0fLineageResponse\x12 \n\x08lineages\x18\x01 \x03(\x0b\x32\x0e.ObjectLineage*Y\n\nObjectType\x12\x1a\n\x16OBJECT_TYPE_UNSPECIFIC\x10\x00\x12\x14\n\x10OBJECT_TYPE_VIEW\x10\x01\x12\x19\n\x15OBJECT_TYPE_PROCEDURE\x10\x02\x32\x41\n\x0eLineageService\x12/\n\nGetLineage\x12\x0f.LineageRequest\x1a\x10.LineageResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'lineage_server_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_OBJECTTYPE']._serialized_start=302
-  _globals['_OBJECTTYPE']._serialized_end=391
+  _globals['_OBJECTTYPE']._serialized_start=303
+  _globals['_OBJECTTYPE']._serialized_end=392
   _globals['_OBJECTINFO']._serialized_start=24
   _globals['_OBJECTINFO']._serialized_end=97
   _globals['_LINEAGE']._serialized_start=99
-  _globals['_LINEAGE']._serialized_end=140
-  _globals['_OBJECTLINEAGE']._serialized_start=142
-  _globals['_OBJECTLINEAGE']._serialized_end=199
-  _globals['_LINEAGEREQUEST']._serialized_start=201
-  _globals['_LINEAGEREQUEST']._serialized_end=247
-  _globals['_LINEAGERESPONSE']._serialized_start=249
-  _globals['_LINEAGERESPONSE']._serialized_end=300
-  _globals['_LINEAGESERVICE']._serialized_start=393
-  _globals['_LINEAGESERVICE']._serialized_end=458
+  _globals['_LINEAGE']._serialized_end=141
+  _globals['_OBJECTLINEAGE']._serialized_start=143
+  _globals['_OBJECTLINEAGE']._serialized_end=200
+  _globals['_LINEAGEREQUEST']._serialized_start=202
+  _globals['_LINEAGEREQUEST']._serialized_end=248
+  _globals['_LINEAGERESPONSE']._serialized_start=250
+  _globals['_LINEAGERESPONSE']._serialized_end=301
+  _globals['_LINEAGESERVICE']._serialized_start=394
+  _globals['_LINEAGESERVICE']._serialized_end=459
 # @@protoc_insertion_point(module_scope)
