@@ -118,7 +118,7 @@ func GetRepoDiff(initRepo *repo.Repo, databaseObjects []database.ObjectInfo) (bo
 	return isRepoDiff, diffObjects
 }
 
-// Apply a lineage to the repo
+// Apply a lineage to the repo (if exist)
 // lineage = map[objectName,lineageOfThatObject]. objectName in schema.name format
 func ApplyLineage(initRepo *repo.Repo, lineage map[ObjectName]string) repo.Repo {
 
@@ -128,30 +128,72 @@ func ApplyLineage(initRepo *repo.Repo, lineage map[ObjectName]string) repo.Repo 
 
 	json.Unmarshal(jsonData, &changeRepo)
 
-	for index, obj := range changeRepo.Detail.Objects {
+	// key = object name , value = hash
+
+	currentObj := map[string]string{}
+
+	for _, link := range changeRepo.Detail.Links {
+		currentObj[link.Name] = link.Current
+	}
+
+	// key = object name , value = hash
+
+	changedObj := map[string]string{}
+
+	for _, obj := range changeRepo.Detail.Objects {
+
+		currentHash, isExist := currentObj[obj.Name]
+
+		if !isExist {
+			continue
+		}
+
+		//get current object information (since we wanted to apply our lineage to it)
+
+		if obj.Hash != currentHash {
+			continue
+		}
 
 		objNameBlocks := strings.Split(obj.Name, ".")
-
-		detailHash := obj.DetailHash
-
-		hash := detailHash
 
 		var lineageHash string
 
 		lineageValue, lineageExist := lineage[ObjectName{Schema: objNameBlocks[0], Name: strings.Join(objNameBlocks[1:], "")}]
 
-		if lineageExist {
-
-			lineageHash = getMd5Hash(lineageValue)
-
-			hash = getMd5Hash(detailHash + lineageHash)
-
-			changeRepo.Detail.Objects[index].Lineage = lineageValue
-			changeRepo.Detail.Objects[index].LineageHash = lineageHash
-
+		if !lineageExist {
+			continue
 		}
 
-		changeRepo.Detail.Objects[index].Hash = hash
+		lineageHash = getMd5Hash(lineageValue)
+
+		hash := getMd5Hash(obj.DetailHash + lineageHash)
+
+		changeRepo.Detail.Objects = append(changeRepo.Detail.Objects, repo.ObjectInfo{
+			Name:        obj.Name,
+			Detail:      obj.Detail,
+			DetailHash:  obj.DetailHash,
+			Lineage:     lineageValue,
+			LineageHash: lineageHash,
+			CreatedAt:   time.Now().UTC(),
+			Verfied:     false,
+			Hash:        hash,
+		})
+
+		changedObj[obj.Name] = hash
+
+	}
+
+	for objName, hash := range changedObj {
+
+		for _, link := range changeRepo.Detail.Links {
+
+			if link.Name != objName {
+				continue
+			}
+
+			changeRepo.Detail.Links = addObjectToLink(changeRepo.Detail.Links, objName, hash, nil)
+
+		}
 
 	}
 
@@ -205,14 +247,14 @@ func ApplyRepoChanges(initRepo *repo.Repo, changedObjects []database.ObjectInfo,
 		changeRepo.Detail.Links = addObjectToLink(changeRepo.Detail.Links,
 			objName,
 			hash,
-			obj.ObjectType)
+			&obj.ObjectType)
 	}
 
 	return changeRepo
 }
 
 // return new link with changed data
-func addObjectToLink(links []repo.Link, objectName string, objectHash string, objectType database.ObjectType) []repo.Link {
+func addObjectToLink(links []repo.Link, objectName string, objectHash string, objectType *database.ObjectType) []repo.Link {
 
 	newLinks := make([]repo.Link, len(links))
 
@@ -257,11 +299,11 @@ func addObjectToLink(links []repo.Link, objectName string, objectHash string, ob
 
 	// if the object does not already exist in links , we have to add themn
 
-	if !isObjectExist {
+	if !isObjectExist && objectType != nil {
 
 		linkType := repo.LinkType("view")
 
-		if objectType == "procedure" {
+		if *objectType == "procedure" {
 			linkType = repo.LinkType("procedure")
 		}
 

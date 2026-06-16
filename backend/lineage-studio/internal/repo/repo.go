@@ -61,6 +61,57 @@ type Repo struct {
 	Detail RepoDetail
 }
 
+type ObjectDetail struct {
+	Object ObjectInfo
+	Type   LinkType
+}
+
+func GetCurrentObjectInfos(initRepo *Repo) []ObjectDetail {
+
+	currentObjects := []ObjectDetail{}
+
+	if initRepo == nil {
+		return []ObjectDetail{}
+	}
+
+	currentHash := map[string]struct {
+		hash     string
+		linkType LinkType
+	}{}
+
+	for _, link := range initRepo.Detail.Links {
+
+		currentHash[link.Name] = struct {
+			hash     string
+			linkType LinkType
+		}{
+			link.Current,
+			link.Type,
+		}
+
+	}
+
+	for _, object := range initRepo.Detail.Objects {
+
+		objectValue, isExist := currentHash[object.Name]
+
+		if !isExist {
+			continue
+		}
+
+		if object.Hash != objectValue.hash {
+			continue
+		}
+
+		currentObjects = append(currentObjects, ObjectDetail{
+			Object: object,
+			Type:   objectValue.linkType,
+		})
+	}
+
+	return currentObjects
+}
+
 func SaveRepo(repoRootPath string, initRepo Repo, isOverwrite bool) error {
 
 	repoRootPath = filepath.Clean(repoRootPath)

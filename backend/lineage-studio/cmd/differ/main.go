@@ -33,6 +33,31 @@ func getLineageObjectInfo(objects []database.ObjectInfo, objectType ls.ObjectTyp
 	return lineageObjectInfo
 }
 
+func getRepoLineageObjectInfo(objects []repo.ObjectDetail) []*ls.ObjectInfo {
+
+	lineageObjectInfo := make([]*ls.ObjectInfo, len(objects))
+
+	for index, object := range objects {
+
+		linkType := object.Type
+
+		objectType := ls.ObjectType_OBJECT_TYPE_VIEW
+
+		if linkType == "procedure" {
+			objectType = ls.ObjectType_OBJECT_TYPE_PROCEDURE
+		}
+
+		lineageObjectInfo[index] = &ls.ObjectInfo{
+			Name:       object.Object.Name,
+			Sql:        object.Object.Detail,
+			ObjectType: objectType,
+		}
+
+	}
+
+	return lineageObjectInfo
+}
+
 func getLineageRequest(views []database.ObjectInfo, procedure []database.ObjectInfo) ls.LineageRequest {
 
 	lineageObjects := getLineageObjectInfo(views, ls.ObjectType_OBJECT_TYPE_VIEW)
@@ -42,6 +67,40 @@ func getLineageRequest(views []database.ObjectInfo, procedure []database.ObjectI
 	return ls.LineageRequest{
 		Objects: lineageObjects,
 	}
+}
+
+func getRepoLineageRequest(initRepo *repo.Repo) ls.LineageRequest {
+
+	objectDetails := repo.GetCurrentObjectInfos(initRepo)
+
+	return ls.LineageRequest{
+		Objects: getRepoLineageObjectInfo(objectDetails),
+	}
+}
+
+func getRepoLineage(lineageServerHost string, lineageServerPort int, repo *repo.Repo) map[differ.ObjectName]string {
+
+	lineageServerUrl := fmt.Sprintf("%v:%v", lineageServerHost, lineageServerPort)
+
+	connection, err := grpc.NewClient(lineageServerUrl, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	if err != nil {
+		log.Fatalf("Cannot create client:%v", err)
+	}
+
+	defer connection.Close()
+
+	client := ls.NewLineageServiceClient(connection)
+
+	lineageRequest := getRepoLineageRequest(repo)
+
+	lineageResponse, err := client.GetLineage(context.Background(), &lineageRequest)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return parseLineageResponse(lineageResponse)
 }
 
 func getLineage(lineageServerHost string, lineageServerPort int, views []database.ObjectInfo, procedures []database.ObjectInfo) map[differ.ObjectName]string {
@@ -63,7 +122,6 @@ func getLineage(lineageServerHost string, lineageServerPort int, views []databas
 	lineageResponse, err := client.GetLineage(context.Background(), &lineageRequest)
 
 	if err != nil {
-		fmt.Println("THERE IS ERROR")
 		log.Fatal(err)
 	}
 
@@ -107,7 +165,13 @@ func parseLineageResponse(response *ls.LineageResponse) map[differ.ObjectName]st
 }
 
 func printHelp() {
-	fmt.Println("Arguments : <database> <repo location> <repo name> <output location> <lineage server host> <lineage server port>")
+	fmt.Println("Commands : lineage (apply lineage) or update (update with new changes)")
+	fmt.Println("Lineage Arguments : <repo location> <repo name> <lineage server host> <lineage server port>")
+	fmt.Println("<repo location> = folder path to get the repo snapshot")
+	fmt.Println("<repo name> =  name of the snapshot repo to apply lineage to")
+	fmt.Println("<lineage server host> = host address of lineage server")
+	fmt.Println("<lineage server port> = port of lineage server (0-65535)")
+	fmt.Println("Update Arguments : <database> <repo location> <repo name> <output location> <lineage server host> <lineage server port>")
 	fmt.Println("<database> = user:password@host/mydatabase")
 	fmt.Println("<repo location> = folder path to get the repo snapshot")
 	fmt.Println("<repo name> =  name of the snapshot repo")
@@ -117,9 +181,52 @@ func printHelp() {
 
 }
 
-func main() {
+func lineageCommand(args []string) {
 
-	args := os.Args[1:]
+	if len(args) != 4 {
+
+		printHelp()
+
+		return
+	}
+
+	repoLocation := args[0]
+
+	repoName := args[1]
+
+	lineageServerHost := args[2]
+
+	lineageServerPortArgument := args[3]
+
+	lineageServerPort, err := strconv.Atoi(lineageServerPortArgument)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !(lineageServerPort >= 0 && lineageServerPort <= 65535) {
+		log.Fatal(fmt.Errorf("Invalid port number:%v", lineageServerPort))
+	}
+
+	initRepo, err := repo.LoadRepo(repoLocation, repoName)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	lineages := getRepoLineage(lineageServerHost, lineageServerPort, &initRepo)
+
+	newRepo := differ.ApplyLineage(&initRepo, lineages)
+
+	err = repo.SaveRepo(repoLocation, newRepo, true)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+}
+
+func updateCommand(args []string) {
 
 	if len(args) != 6 {
 
@@ -188,4 +295,43 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+}
+
+func main() {
+
+	args := os.Args[1:]
+
+	command := ""
+
+	if len(args) >= 1 {
+
+		command = args[0]
+
+	} else {
+
+		printHelp()
+
+		return
+	}
+
+	if command != "lineage" && command != "update" {
+
+		printHelp()
+
+		return
+	}
+
+	switch command {
+
+	case "lineage":
+
+		lineageCommand(args[1:])
+
+	case "update":
+
+		updateCommand(args[1:])
+
+	}
+
 }
