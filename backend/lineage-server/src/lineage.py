@@ -8,17 +8,18 @@ from dataclasses import dataclass
 from sqlglot.schema import MappingSchema
 from collections import defaultdict
 
-@dataclass(frozen=True)
-class Metadata:
-    host:str
-    database:str
-    objects:List[MetadataObject]
 
 @dataclass(frozen=True)
 class MetadataObject:
     schema:str
     name:str
     columns:List[str]
+
+@dataclass(frozen=True)
+class Metadata:
+    host:str
+    database:str
+    objects:List[MetadataObject]
 
 @dataclass(frozen=True)
 class ColumnLineage:
