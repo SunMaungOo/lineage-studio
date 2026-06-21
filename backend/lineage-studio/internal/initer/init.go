@@ -69,7 +69,7 @@ func getRepoObjects(sqlObjects []database.ObjectInfo) []repo.ObjectInfo {
 			Lineage:     "",
 			LineageHash: "",
 			CreatedAt:   time.Now().UTC(),
-			Verfied:     false,
+			Verified:    false,
 			Hash:        hash,
 		}
 

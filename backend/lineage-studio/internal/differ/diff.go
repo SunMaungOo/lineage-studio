@@ -181,7 +181,7 @@ func ApplyLineage(initRepo *repo.Repo, lineage map[ObjectName]string) repo.Repo 
 			Lineage:     lineageValue,
 			LineageHash: lineageHash,
 			CreatedAt:   time.Now().UTC(),
-			Verfied:     false,
+			Verified:    false,
 			Hash:        hash,
 		})
 
@@ -197,7 +197,7 @@ func ApplyLineage(initRepo *repo.Repo, lineage map[ObjectName]string) repo.Repo 
 				continue
 			}
 
-			changeRepo.Detail.Links = addObjectToLink(changeRepo.Detail.Links, objName, hash, nil)
+			changeRepo.Detail.Links = repo.AddObjectToLink(changeRepo.Detail.Links, objName, hash, nil)
 
 		}
 
@@ -246,84 +246,17 @@ func ApplyRepoChanges(initRepo *repo.Repo, changedObjects []database.ObjectInfo,
 			Lineage:     lineageValue,
 			LineageHash: lineageHash,
 			CreatedAt:   time.Now().UTC(),
-			Verfied:     false,
+			Verified:    false,
 			Hash:        hash,
 		})
 
-		changeRepo.Detail.Links = addObjectToLink(changeRepo.Detail.Links,
+		changeRepo.Detail.Links = repo.AddObjectToLink(changeRepo.Detail.Links,
 			objName,
 			hash,
 			&obj.ObjectType)
 	}
 
 	return changeRepo
-}
-
-// return new link with changed data
-func addObjectToLink(links []repo.Link, objectName string, objectHash string, objectType *database.ObjectType) []repo.Link {
-
-	newLinks := make([]repo.Link, len(links))
-
-	copy(newLinks, links)
-
-	isObjectExist := false
-
-	for linkIndex, link := range newLinks {
-
-		if link.Name == objectName {
-
-			isObjectExist = true
-
-			previousCurrent := link.Current
-
-			newLinks[linkIndex].Current = objectHash
-
-			oldHistory := link.History
-
-			newHistory := make([]repo.ObjectHistory, len(oldHistory)+1)
-
-			// sort the history again
-
-			for index, objectHistory := range oldHistory {
-
-				newHistory[index] = repo.ObjectHistory{
-					Hash:  objectHistory.Hash,
-					Order: objectHistory.Order + 1,
-				}
-			}
-
-			newHistory[len(oldHistory)] = repo.ObjectHistory{
-				Hash:  previousCurrent,
-				Order: 1,
-			}
-
-			newLinks[linkIndex].History = newHistory
-
-		}
-
-	}
-
-	// if the object does not already exist in links , we have to add themn
-
-	if !isObjectExist && objectType != nil {
-
-		linkType := repo.LinkType("view")
-
-		if *objectType == "procedure" {
-			linkType = repo.LinkType("procedure")
-		}
-
-		newLinks = append(newLinks, repo.Link{
-			Name:    objectName,
-			Type:    linkType,
-			Current: objectHash,
-			History: []repo.ObjectHistory{},
-		})
-
-	}
-
-	return newLinks
-
 }
 
 // get object which have the same name and hash

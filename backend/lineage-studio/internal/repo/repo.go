@@ -2,10 +2,13 @@ package repo
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/SunMaungOo/lineage-studio/internal/database"
 )
 
 type MetadataType string
@@ -40,14 +43,15 @@ type Link struct {
 }
 
 type ObjectInfo struct {
-	Name        string    `json:"name"`
-	Detail      string    `json:"detail"`
-	DetailHash  string    `json:"detailHash"`
-	Lineage     string    `json:"lineage"`
-	LineageHash string    `json:"lineageHash"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Verfied     bool      `json:"verified"`
-	Hash        string    `json:"hash"`
+	Name        string     `json:"name"`
+	Detail      string     `json:"detail"`
+	DetailHash  string     `json:"detailHash"`
+	Lineage     string     `json:"lineage"`
+	LineageHash string     `json:"lineageHash"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	Verified    bool       `json:"verified"`
+	VerifiedAt  *time.Time `json:"verifiedAt,omitempty"`
+	Hash        string     `json:"hash"`
 }
 
 type RepoDetail struct {
@@ -64,6 +68,191 @@ type Repo struct {
 type ObjectDetail struct {
 	Object ObjectInfo
 	Type   LinkType
+}
+
+// objectName to add
+// objectHash = hash of the object we wanted to add
+// objectType is only used if it is the new object. Use nil to ignore it if link of the object already exist
+// return new link with changed data
+func AddObjectToLink(links []Link, objectName string, objectHash string, objectType *database.ObjectType) []Link {
+
+	newLinks := make([]Link, len(links))
+
+	copy(newLinks, links)
+
+	isObjectExist := false
+
+	for linkIndex, link := range newLinks {
+
+		if link.Name == objectName {
+
+			isObjectExist = true
+
+			previousCurrent := link.Current
+
+			newLinks[linkIndex].Current = objectHash
+
+			oldHistory := link.History
+
+			newHistory := make([]ObjectHistory, len(oldHistory)+1)
+
+			// sort the history again
+
+			for index, objectHistory := range oldHistory {
+
+				newHistory[index] = ObjectHistory{
+					Hash:  objectHistory.Hash,
+					Order: objectHistory.Order + 1,
+				}
+			}
+
+			newHistory[len(oldHistory)] = ObjectHistory{
+				Hash:  previousCurrent,
+				Order: 1,
+			}
+
+			newLinks[linkIndex].History = newHistory
+
+		}
+
+	}
+
+	// if the object does not already exist in links , we have to add themn
+
+	if !isObjectExist && objectType != nil {
+
+		linkType := LinkType("view")
+
+		if *objectType == "procedure" {
+			linkType = LinkType("procedure")
+		}
+
+		newLinks = append(newLinks, Link{
+			Name:    objectName,
+			Type:    linkType,
+			Current: objectHash,
+			History: []ObjectHistory{},
+		})
+
+	}
+
+	return newLinks
+
+}
+
+// Get Object which have the same hash
+
+func GetObjectInfo(repoLocation string, repoName string, objectName string, objectHash string) (ObjectDetail, error) {
+
+	linkLocation := filepath.Join(repoLocation, repoName, "links", objectName+".json")
+
+	link, err := LoadLink(linkLocation)
+
+	if err != nil {
+		return ObjectDetail{}, err
+	}
+
+	objLocation := filepath.Join(repoLocation, repoName, "obj", objectName+"-"+objectHash+".json")
+
+	objectInfo, err := LoadObject(objLocation)
+
+	if err != nil {
+		return ObjectDetail{}, err
+	}
+
+	return ObjectDetail{
+		Object: objectInfo,
+		Type:   link.Type,
+	}, nil
+}
+
+func (initRepo Repo) GetCurrentObjectInfo(objectName string) (ObjectDetail, error) {
+
+	var objectLink Link
+
+	isFoundObject := false
+
+	for _, link := range initRepo.Detail.Links {
+
+		if link.Name == objectName {
+
+			objectLink = link
+
+			isFoundObject = true
+
+			break
+		}
+
+	}
+
+	if !isFoundObject {
+		return ObjectDetail{}, errors.New("No object is found")
+	}
+
+	for _, object := range initRepo.Detail.Objects {
+
+		if !(object.Name == objectName && object.Hash == objectLink.Current) {
+			continue
+		}
+
+		return ObjectDetail{
+			Object: object,
+			Type:   objectLink.Type,
+		}, nil
+	}
+
+	return ObjectDetail{}, fmt.Errorf("repo have missing object. Cannot find %v-%v", objectName, objectLink.Current)
+}
+
+func GetCurrentObjectInfo(repoLocation string, repoName string, objectName string) (ObjectDetail, error) {
+
+	linkLocation := filepath.Join(repoLocation, repoName, "links", objectName+".json")
+
+	link, err := LoadLink(linkLocation)
+
+	if err != nil {
+		return ObjectDetail{}, err
+	}
+
+	return GetObjectInfo(repoLocation, repoName, objectName, link.Current)
+
+}
+
+// get all the object which have the object name
+
+func GetObjectInfoByName(repoLocation string, repoName string, objectName string) ([]ObjectDetail, error) {
+
+	linkLocation := filepath.Join(repoLocation, repoName, "links", objectName+".json")
+
+	link, err := LoadLink(linkLocation)
+
+	if err != nil {
+		return []ObjectDetail{}, err
+	}
+
+	objectHashes := make([]string, len(link.History)+1)
+	objectHashes[0] = link.Current
+
+	for index, history := range link.History {
+		objectHashes[index+1] = history.Hash
+	}
+
+	objectDetails := make([]ObjectDetail, len(objectHashes))
+
+	for index, hash := range objectHashes {
+
+		objectDetail, err := GetObjectInfo(repoLocation, repoName, objectName, hash)
+
+		if err != nil {
+			return []ObjectDetail{}, nil
+		}
+
+		objectDetails[index] = objectDetail
+
+	}
+
+	return objectDetails, nil
+
 }
 
 func GetCurrentObjectInfos(initRepo *Repo) []ObjectDetail {
@@ -93,19 +282,19 @@ func GetCurrentObjectInfos(initRepo *Repo) []ObjectDetail {
 
 	for _, object := range initRepo.Detail.Objects {
 
-		objectValue, isExist := currentHash[object.Name]
+		linkValue, isExist := currentHash[object.Name]
 
 		if !isExist {
 			continue
 		}
 
-		if object.Hash != objectValue.hash {
+		if object.Hash != linkValue.hash {
 			continue
 		}
 
 		currentObjects = append(currentObjects, ObjectDetail{
 			Object: object,
-			Type:   objectValue.linkType,
+			Type:   linkValue.linkType,
 		})
 	}
 
@@ -229,7 +418,7 @@ func LoadRepos(repoRootPath string) ([]Repo, error) {
 
 	repos := []Repo{}
 
-	folderNames, err := getFolderNames(repoRootPath)
+	folderNames, err := GetFolderNames(repoRootPath)
 
 	if err != nil {
 		return nil, err
@@ -253,7 +442,7 @@ func LoadRepo(repoRootPath string, folderName string) (Repo, error) {
 
 	repoDirPath := filepath.Join(repoRootPath, folderName)
 
-	meta, err := loadMetadata(repoDirPath)
+	meta, err := LoadMetadata(repoDirPath)
 
 	if err != nil {
 		return Repo{}, nil
@@ -281,7 +470,7 @@ func LoadRepo(repoRootPath string, folderName string) (Repo, error) {
 	}, nil
 }
 
-func loadMetadata(repoDirPath string) (Metadata, error) {
+func LoadMetadata(repoDirPath string) (Metadata, error) {
 
 	var meta Metadata
 
@@ -337,15 +526,7 @@ func loadObjects(repoDirPath string) ([]ObjectInfo, error) {
 
 		objFileLocation := filepath.Clean(filepath.Join(objPath, entry.Name()))
 
-		objData, err := os.ReadFile(objFileLocation)
-
-		if err != nil {
-			return []ObjectInfo{}, err
-		}
-
-		var object ObjectInfo
-
-		err = json.Unmarshal(objData, &object)
+		object, err := LoadObject(objFileLocation)
 
 		if err != nil {
 			return []ObjectInfo{}, err
@@ -357,6 +538,25 @@ func loadObjects(repoDirPath string) ([]ObjectInfo, error) {
 
 	return objects, nil
 
+}
+
+func LoadObject(objFileLocation string) (ObjectInfo, error) {
+
+	objData, err := os.ReadFile(objFileLocation)
+
+	if err != nil {
+		return ObjectInfo{}, err
+	}
+
+	var object ObjectInfo
+
+	err = json.Unmarshal(objData, &object)
+
+	if err != nil {
+		return ObjectInfo{}, err
+	}
+
+	return object, nil
 }
 
 func loadLinks(repoDirPath string) ([]Link, error) {
@@ -386,15 +586,7 @@ func loadLinks(repoDirPath string) ([]Link, error) {
 
 		linkFileLocation := filepath.Clean(filepath.Join(linkPath, entry.Name()))
 
-		linkData, err := os.ReadFile(linkFileLocation)
-
-		if err != nil {
-			return []Link{}, err
-		}
-
-		var link Link
-
-		err = json.Unmarshal(linkData, &link)
+		link, err := LoadLink(linkFileLocation)
 
 		if err != nil {
 			return []Link{}, err
@@ -408,7 +600,26 @@ func loadLinks(repoDirPath string) ([]Link, error) {
 
 }
 
-func getFolderNames(dirPath string) ([]string, error) {
+func LoadLink(linkFileLocation string) (Link, error) {
+
+	linkData, err := os.ReadFile(linkFileLocation)
+
+	if err != nil {
+		return Link{}, err
+	}
+
+	var link Link
+
+	err = json.Unmarshal(linkData, &link)
+
+	if err != nil {
+		return Link{}, err
+	}
+
+	return link, nil
+}
+
+func GetFolderNames(dirPath string) ([]string, error) {
 
 	folderNames := []string{}
 

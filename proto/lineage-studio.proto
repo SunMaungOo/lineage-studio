@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+enum DatabaseType {
+    DATABASE_TYPE_UNSPECIFIED = 0;
+    DATABASE_TYPE_MSSQL = 1;
+    DATABASE_TYPE_ORACLE = 2;
+}
+
+message RepoSummary {
+    string name = 1;
+    DatabaseType database_type = 2;
+    string host = 3; 
+    string db_name = 4; 
+    string repo_version = 5; 
+    google.protobuf.Timestamp last_synced_at = 6; 
+}
+
+enum ObjectType {
+    OBJECT_TYPE_UNSPECIFIED = 0;
+    OBJECT_TYPE_VIEW = 1;
+    OBJECT_TYPE_PROCEDURE = 2;
+}
+
+
+message ObjectSummary{
+    string name = 1;
+    ObjectType object_type = 2;
+    bool verified = 3;
+}
+
+message ObjectDetail {
+    string name = 1;
+    ObjectType object_type = 2;
+    string source_code = 3; 
+    string lineage = 4; 
+    string lineage_hash = 5;
+    string object_hash = 6; 
+    bool verified = 7;
+    google.protobuf.Timestamp created_at  = 8;
+    google.protobuf.Timestamp verified_at = 9; 
+    string repo_version = 10;
+}
+
+message HistoryEntry {
+    string object_hash = 1;
+    bool verified = 2;
+    google.protobuf.Timestamp created_at  = 3;
+}
+
+enum WriteStatus {
+    WRITE_STATUS_UNSPECIFIED = 0;
+    WRITE_STATUS_OK = 1;
+    WRITE_STATUS_CONFLICT = 2;
+    WRITE_STATUS_DENIED = 3;
+}
+
+message ConflictDetail {
+    string current_repo_version = 1;
+    ObjectDetail current_object = 2;
+}
+
+message GetReposRequest {
+
+}
+
+message GetReposResponse {
+    repeated RepoSummary repos = 1;
+}
+
+message GetObjectsRequest {
+    string repo_name = 1;
+}
+
+message GetObjectsResponse {
+    string repo_version = 1;
+    repeated ObjectSummary objects =2;
+}
+
+message GetObjectRequest {
+    string repo_name = 1;
+    string object_name = 2;
+    //optional , empty mean it is current hash
+    string history_hash = 3;
+}
+
+message GetObjectResponse {
+    ObjectDetail object = 1;
+    bool is_historical = 2;
+}
+
+message GetObjectHistoryRequest {
+    string repo_name = 1;
+    string object_name = 2;
+}
+
+message GetObjectHistoryResponse {
+    repeated HistoryEntry histories = 1;
+}
+
+message RefreshRepoRequest {
+    string repo_name = 1;
+}
+
+message RefreshRepoResponse {
+    string new_repo_version = 1;
+    bool had_changes = 2;
+}
+
+message VerifyObjectLineageRequest {
+    string repo_name = 1;
+    string object_name = 2;
+    string repo_version = 3;
+}
+
+message VerifyObjectLineageResponse {
+    WriteStatus status = 1;
+    string new_repo_version = 2;
+    ConflictDetail conflict = 3;
+}
+
+message ChangeLineageRequest {
+    string repo_name = 1;
+    string object_name = 2; 
+    string lineage = 3;
+    string repo_version = 4;
+}
+
+message ChangeLineageResponse {
+    WriteStatus status = 1;
+    string new_repo_version = 2;
+    ObjectDetail updated_object = 3;
+    ConflictDetail conflict = 4; 
+}
+
+service LineageStudioService {
+
+    // Get all repo summary
+    rpc GetRepos(GetReposRequest) returns (GetReposResponse);
+
+    // Get all the object in the repo
+    rpc GetObjects(GetObjectsRequest) returns (GetObjectsResponse);
+
+    // Get detail about single object in the repo
+    rpc GetObject(GetObjectRequest) returns (GetObjectResponse);
+
+    // Get history timeline of single object in the repo
+    rpc GetObjectHistory (GetObjectHistoryRequest) returns (GetObjectHistoryResponse);
+
+    rpc RefreshRepo (RefreshRepoRequest) returns (RefreshRepoResponse);
+
+    rpc VerifyObjectLineage (VerifyObjectLineageRequest) returns (VerifyObjectLineageResponse);
+
+    rpc ChangeLineage (ChangeLineageRequest) returns (ChangeLineageResponse);
+
+}

@@ -44,6 +44,7 @@ The object is the view and procedure of the database. It should be under ``obj``
   "lineageHash": "hash of the lineage",
   "createdAt": "UTC time the file was created",
   "verified": whether the lineage have been human verifed (true/false),
+  "verifiedAt" : "UTC time that human have verified the lineage (optinal field)"
   "hash": "hash of detailHash + lineageHash which acts as hash of the object"
 }
 ```
