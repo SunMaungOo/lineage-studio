@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/SunMaungOo/lineage-studio/internal/database"
 	"github.com/SunMaungOo/lineage-studio/internal/differ"
+	"github.com/SunMaungOo/lineage-studio/internal/git"
 	ls "github.com/SunMaungOo/lineage-studio/internal/lineage-server"
 	"github.com/SunMaungOo/lineage-studio/internal/repo"
 	"google.golang.org/grpc"
@@ -208,6 +210,13 @@ func lineageCommand(args []string) {
 		log.Fatal(fmt.Errorf("Invalid port number:%v", lineageServerPort))
 	}
 
+	err = syncRepo(repoLocation, repoName, "origin")
+
+	if err != nil {
+		fmt.Println("Fail to sync repo. Please check network and run command again")
+		log.Fatal(err)
+	}
+
 	initRepo, err := repo.LoadRepo(repoLocation, repoName)
 
 	if err != nil {
@@ -218,7 +227,9 @@ func lineageCommand(args []string) {
 
 	newRepo := differ.ApplyLineage(&initRepo, lineages)
 
-	err = repo.SaveRepo(repoLocation, newRepo, true)
+	repoDirPath := filepath.Join(repoLocation, repoName)
+
+	err = saveRepo(repoLocation, newRepo, repoDirPath, "origin", "differ:apply-lineage")
 
 	if err != nil {
 		log.Fatal(err)
@@ -273,6 +284,13 @@ func updateCommand(args []string) {
 		log.Fatal(fmt.Errorf("Invalid port number:%v", lineageServerPort))
 	}
 
+	err = syncRepo(repoLocation, repoName, "origin")
+
+	if err != nil {
+		fmt.Println("Fail to sync repo. Please check network and run command again")
+		log.Fatal(err)
+	}
+
 	initRepo, err := repo.LoadRepo(repoLocation, repoName)
 
 	if err != nil {
@@ -290,11 +308,81 @@ func updateCommand(args []string) {
 
 	newRepo := differ.ApplyRepoChanges(&initRepo, changedObjects, lineages)
 
-	err = repo.SaveRepo(outputLocation, newRepo, true)
+	repoDirPath := filepath.Join(repoLocation, repoName)
+
+	err = saveRepo(outputLocation, newRepo, repoDirPath, "origin", "differ:update")
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+}
+
+func saveRepo(outputLocation string, newRepo repo.Repo, repoDirPath string, gitRemote string, commitMessage string) error {
+
+	gitCommit, err := git.GitHeadCommit(repoDirPath)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = repo.SaveRepo(outputLocation, newRepo, true)
+
+	if err != nil {
+
+		gitResetError := git.GitResetHard(repoDirPath, gitCommit)
+
+		if gitResetError != nil {
+			return gitResetError
+		}
+
+		return err
+	}
+
+	err = git.GitAddAllCommitAndPush(repoDirPath, commitMessage, gitRemote)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func syncRepo(repoLocation string, repoName string, remoteName string) error {
+
+	repoDirPath := filepath.Join(repoLocation, repoName)
+
+	currentHead, err := git.GitHeadCommit(repoDirPath)
+
+	if err != nil {
+		return err
+	}
+
+	remoteHead, err := git.GitRemoteHeadCommit(repoDirPath, remoteName)
+
+	if err != nil {
+		return err
+	}
+
+	if currentHead == remoteHead {
+		return nil
+	}
+
+	//revert all staging
+
+	err = git.GitResetHard(repoDirPath, currentHead)
+
+	if err != nil {
+		return err
+	}
+
+	err = git.GitPull(repoDirPath)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }
 
