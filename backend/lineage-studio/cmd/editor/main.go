@@ -82,7 +82,7 @@ func main() {
 		MaxAge:           7200,
 	})
 
-	serverAddr := fmt.Sprintf("localhost:%v", serverPort)
+	serverAddr := fmt.Sprintf("0.0.0.0:%v", serverPort)
 
 	server := http.Server{
 		Addr:      serverAddr,
