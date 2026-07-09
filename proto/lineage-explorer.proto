@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+
+message RepoSummary {
+    string name = 1;
+    string database_type = 2;
+    string host = 3; 
+    string db_name = 4; 
+    string repo_version = 5; 
+}
+
+message GetReposRequest {
+
+}
+
+message GetReposResponse {
+    repeated RepoSummary repos = 1;
+}
+
+enum LineageStatus {
+    LINEAGE_STATUS_UNSPECIFIED = 0;
+    LINEAGE_STATUS_OK = 1;
+    LINEAGE_STATUS_NO_CHANGES = 2;
+    LINEAGE_STATUS_ERROR = 3;
+}
+
+
+message Statement {
+    repeated string sources = 1;    
+    string target = 2;    
+}
+
+message LineageResponse {
+    string repoVersion = 1;
+    repeated LineageDetail details = 2;
+    LineageStatus status = 3;
+}
+
+message LineageDetail {
+    string repo = 1;   
+    string name = 2;
+    string type = 3;
+    repeated Statement statements = 4;
+}
+
+message LineageRequest {
+    string repoName = 1;
+    string repoVersion = 2;
+}
+
+service LineageExplorer {
+
+    rpc GetRepos(GetReposRequest) returns (GetReposResponse);
+
+    rpc GetLineage(LineageRequest) returns (LineageResponse);
+    
+}
