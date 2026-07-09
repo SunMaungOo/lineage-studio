@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lineage Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#0f0f0f; --bg-2:#161616; --bg-3:#1c1c1c; --bg-4:#222222; --bg-hover:#262626;
+  --border:rgba(255,255,255,0.07); --border-md:rgba(255,255,255,0.12); --border-strong:rgba(255,255,255,0.18);
+  --text-primary:#f0ede8; --text-secondary:#8a8682; --text-muted:#555250;
+  --accent:#d4a96a; --accent-dim:rgba(212,169,106,0.12); --accent-dim2:rgba(212,169,106,0.06);
+  --verified:#4d9e75; --verified-dim:rgba(77,158,117,0.12);
+  --danger:#c0534a; --info:#5a8fc4; --info-dim:rgba(90,143,196,0.1);
+  --history-bg:rgba(90,143,196,0.06); --history-border:rgba(90,143,196,0.22);
+  --panel-left:288px; --radius:8px; --radius-sm:5px;
+  --font:'Instrument Sans',sans-serif; --mono:'Geist Mono',monospace;
+}
+html,body { height:100%; overflow:hidden; background:var(--bg); color:var(--text-primary); font-family:var(--font); font-size:14px; -webkit-font-smoothing:antialiased; }
+.app { display:flex; height:100vh; }
+
+/* ── Left panel ── */
+.left-panel { width:var(--panel-left); min-width:var(--panel-left); background:var(--bg-2); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.left-header { padding:14px 14px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.app-wordmark { font-size:12px; font-weight:500; color:var(--text-muted); letter-spacing:0.09em; text-transform:uppercase; margin-bottom:10px; }
+.active-repo-pill { display:flex; align-items:center; gap:9px; padding:8px 10px; background:var(--bg-3); border:1px solid var(--border-md); border-radius:var(--radius); cursor:pointer; transition:background 0.13s, border-color 0.13s; user-select:none; }
+.active-repo-pill:hover { background:var(--bg-4); border-color:var(--border-strong); }
+.active-repo-pill.open  { border-color:var(--accent); background:var(--accent-dim2); }
+.repo-pill-icon { width:26px; height:26px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; font-weight:600; }
+.repo-pill-meta { flex:1; min-width:0; }
+.repo-pill-name { font-size:13px; font-weight:500; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.repo-pill-sub  { font-size:10.5px; color:var(--text-muted); font-family:var(--mono); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.repo-pill-caret { color:var(--text-muted); transition:transform 0.18s; flex-shrink:0; }
+.active-repo-pill.open .repo-pill-caret { transform:rotate(180deg); color:var(--accent); }
+.pill-paused-tag { font-size:9px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; padding:2px 5px; border-radius:3px; background:rgba(255,255,255,0.05); border:1px solid var(--border-md); color:var(--text-muted); flex-shrink:0; }
+
+/* ── Repo switcher dropdown ── */
+.repo-switcher-drop { position:absolute; top:0; left:0; width:var(--panel-left); background:var(--bg-2); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:50; overflow:hidden; transition:opacity 0.15s, transform 0.15s; }
+.repo-switcher-drop.hidden { opacity:0; pointer-events:none; transform:translateY(-6px); }
+.switcher-header { padding:14px 14px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.switcher-title { font-size:12px; font-weight:500; color:var(--text-muted); letter-spacing:0.08em; text-transform:uppercase; flex:1; }
+.btn-close-switcher { width:24px; height:24px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-sm); background:transparent; border:none; color:var(--text-muted); cursor:pointer; transition:background 0.12s, color 0.12s; }
+.btn-close-switcher:hover { background:var(--bg-hover); color:var(--text-primary); }
+.switcher-list { flex:1; overflow-y:auto; padding:6px 8px 8px; }
+.switcher-list::-webkit-scrollbar { width:4px; }
+.switcher-list::-webkit-scrollbar-thumb { background:var(--border-md); border-radius:2px; }
+.switcher-repo-row { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:var(--radius); cursor:pointer; transition:background 0.12s; margin-bottom:2px; }
+.switcher-repo-row:hover { background:var(--bg-hover); }
+.switcher-repo-row.is-active { background:var(--accent-dim2); }
+.switcher-repo-row.is-disabled { opacity:0.5; }
+.switcher-repo-icon { width:26px; height:26px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; font-weight:600; }
+.switcher-repo-meta { flex:1; min-width:0; }
+.switcher-repo-name { font-size:12.5px; font-weight:500; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.switcher-repo-sub  { font-size:10.5px; color:var(--text-muted); font-family:var(--mono); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.switcher-repo-badges { display:flex; align-items:center; gap:5px; flex-shrink:0; }
+.active-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 2px var(--accent-dim); }
+.disabled-badge { font-size:9.5px; font-weight:500; letter-spacing:0.05em; text-transform:uppercase; padding:2px 5px; border-radius:3px; background:rgba(255,255,255,0.05); border:1px solid var(--border-md); color:var(--text-muted); }
+.btn-toggle-repo { width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-sm); background:transparent; border:none; color:var(--text-muted); cursor:pointer; transition:background 0.12s, color 0.12s; flex-shrink:0; opacity:0; }
+.switcher-repo-row:hover .btn-toggle-repo { opacity:1; }
+.btn-toggle-repo:hover { background:var(--bg-4); color:var(--text-primary); }
+.btn-toggle-repo.is-disabled-btn { color:var(--verified); }
+.switcher-footer { padding:8px 14px 10px; border-top:1px solid var(--border); flex-shrink:0; }
+.switcher-footer-hint { font-size:11px; color:var(--text-muted); line-height:1.5; }
+
+/* ── Tree ── */
+.tree-scroll { flex:1; overflow-y:auto; padding:8px 0; }
+.tree-scroll::-webkit-scrollbar { width:4px; }
+.tree-scroll::-webkit-scrollbar-thumb { background:var(--border-md); border-radius:2px; }
+.tree-section { padding:0 8px; margin-bottom:2px; }
+.tree-folder { display:flex; align-items:center; gap:7px; padding:5px 8px; border-radius:var(--radius-sm); cursor:pointer; color:var(--text-secondary); font-size:12px; font-weight:500; letter-spacing:0.04em; text-transform:uppercase; user-select:none; transition:background 0.12s; }
+.tree-folder:hover { background:var(--bg-hover); }
+.tree-folder svg { flex-shrink:0; }
+.tree-folder-chevron { margin-left:auto; transition:transform 0.2s; }
+.tree-folder.open .tree-folder-chevron { transform:rotate(90deg); }
+.tree-items { overflow:hidden; }
+.tree-item { display:flex; align-items:center; padding:5px 8px 5px 28px; border-radius:var(--radius-sm); cursor:pointer; transition:background 0.12s; position:relative; user-select:none; }
+.tree-item:hover { background:var(--bg-hover); }
+.tree-item.selected { background:var(--accent-dim); }
+.tree-item.selected::before { content:''; position:absolute; left:8px; top:50%; transform:translateY(-50%); width:3px; height:14px; background:var(--accent); border-radius:2px; }
+.tree-item-name { flex:1; min-width:0; font-size:12.5px; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tree-item.selected .tree-item-name { color:var(--accent); }
+.verified-dot { width:6px; height:6px; border-radius:50%; background:var(--verified); margin-left:6px; flex-shrink:0; box-shadow:0 0 0 2px var(--verified-dim); }
+
+/* Tree loading/error states */
+.tree-message { padding:20px 14px; text-align:center; }
+.tree-message p { font-size:12px; color:var(--text-muted); line-height:1.6; }
+.tree-message .tree-msg-icon { font-size:22px; margin-bottom:8px; opacity:0.4; }
+.tree-message button { margin-top:10px; padding:4px 10px; border:1px solid var(--border-md); border-radius:var(--radius-sm); background:var(--bg-3); color:var(--text-secondary); font-size:11px; cursor:pointer; font-family:var(--font); transition:background 0.13s; }
+.tree-message button:hover { background:var(--bg-4); color:var(--text-primary); }
+
+/* ── Left footer ── */
+.left-footer { padding:10px 14px; border-top:1px solid var(--border); display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.status-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.status-dot.online   { background:var(--verified); }
+.status-dot.paused   { background:var(--text-muted); }
+.status-dot.loading  { background:var(--accent); animation:pulse 1s ease-in-out infinite; }
+.status-dot.error    { background:var(--danger); }
+.status-text { font-size:11px; color:var(--text-muted); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Right panel ── */
+.right-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+.empty-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:var(--text-muted); }
+.empty-title { font-size:14px; font-weight:500; }
+.empty-sub   { font-size:12px; }
+.detail-view { flex:1; display:flex; flex-direction:column; overflow:hidden; animation:fadeIn 0.15s ease; }
+
+/* Loading overlay inside detail panel */
+.detail-loading { position:absolute; inset:0; background:rgba(15,15,15,0.6); display:flex; align-items:center; justify-content:center; z-index:20; backdrop-filter:blur(2px); }
+.detail-loading .spinner { width:20px; height:20px; border:2px solid var(--border-md); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
+
+/* History banner */
+.history-banner { display:flex; align-items:center; gap:10px; padding:9px 24px; background:var(--history-bg); border-bottom:1px solid var(--history-border); flex-shrink:0; }
+.history-banner-icon { color:var(--info); display:flex; align-items:center; }
+.history-banner-icon svg { width:14px; height:14px; }
+.history-banner-text { font-size:12px; color:var(--info); flex:1; }
+.history-banner-text strong { font-weight:500; }
+.btn-back-current { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:var(--radius-sm); border:1px solid var(--history-border); background:transparent; color:var(--info); font-size:11px; font-weight:500; cursor:pointer; font-family:var(--font); transition:background 0.15s; }
+.btn-back-current:hover { background:rgba(90,143,196,0.12); }
+.btn-back-current svg { width:11px; height:11px; }
+
+/* Paused banner */
+.paused-banner { display:flex; align-items:center; gap:10px; padding:8px 24px 8px 20px; background:rgba(90,88,80,0.18); border-bottom:1px solid rgba(255,255,255,0.07); flex-shrink:0; }
+.paused-banner-icon { color:var(--text-muted); display:flex; align-items:center; flex-shrink:0; }
+.paused-banner-icon svg { width:13px; height:13px; }
+.paused-banner-text { font-size:12px; color:var(--text-muted); flex:1; }
+.btn-enable-repo { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:var(--radius-sm); border:1px solid var(--border-md); background:var(--bg-3); color:var(--text-secondary); font-size:11px; font-weight:500; cursor:pointer; font-family:var(--font); transition:background 0.15s, color 0.15s; white-space:nowrap; }
+.btn-enable-repo:hover { background:var(--bg-4); border-color:var(--border-strong); color:var(--text-primary); }
+.btn-enable-repo svg { width:11px; height:11px; }
+
+/* Conflict banner (inline, below topbar) */
+.conflict-notice { margin:10px 24px 0; padding:9px 12px; background:rgba(192,83,74,0.08); border:1px solid rgba(192,83,74,0.22); border-radius:var(--radius-sm); font-size:12px; color:var(--danger); display:flex; align-items:flex-start; gap:10px; flex-shrink:0; }
+.conflict-notice svg { width:13px; height:13px; flex-shrink:0; margin-top:1px; }
+.conflict-notice-body { flex:1; }
+.conflict-notice-title { font-weight:500; margin-bottom:3px; }
+.conflict-notice-detail { font-size:11px; color:rgba(192,83,74,0.8); font-family:var(--mono); }
+.conflict-notice-actions { display:flex; gap:6px; margin-top:7px; }
+.conflict-notice button { padding:3px 8px; border-radius:var(--radius-sm); border:1px solid rgba(192,83,74,0.3); background:transparent; color:var(--danger); font-size:11px; cursor:pointer; font-family:var(--font); transition:background 0.13s; }
+.conflict-notice button.primary { background:rgba(192,83,74,0.15); }
+.conflict-notice button:hover { background:rgba(192,83,74,0.2); }
+
+/* Read-only state */
+.detail-view.repo-paused .lineage-textarea { opacity:0.6; cursor:default; }
+.detail-view.repo-paused .topbar-actions   { opacity:0.35; pointer-events:none; }
+
+/* Detail topbar */
+.detail-topbar { padding:14px 24px 13px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.detail-obj-type { font-size:10px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; padding:3px 7px; border-radius:var(--radius-sm); background:var(--info-dim); color:var(--info); border:1px solid rgba(90,143,196,0.18); }
+.detail-obj-type.proc { background:var(--accent-dim); color:var(--accent); border-color:rgba(212,169,106,0.18); }
+.detail-obj-name { font-size:14px; font-weight:500; color:var(--text-primary); font-family:var(--mono); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.topbar-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.btn { display:flex; align-items:center; gap:5px; padding:5px 10px; border-radius:var(--radius-sm); border:1px solid var(--border-md); background:var(--bg-3); color:var(--text-secondary); font-size:12px; font-weight:500; cursor:pointer; transition:all 0.15s; font-family:var(--font); white-space:nowrap; }
+.btn:hover { background:var(--bg-4); border-color:var(--border-strong); color:var(--text-primary); }
+.btn:disabled { opacity:0.4; pointer-events:none; }
+.btn svg { width:13px; height:13px; }
+.btn-verify { background:var(--verified-dim); border-color:rgba(77,158,117,0.25); color:var(--verified); }
+.btn-verify:hover { background:rgba(77,158,117,0.2); color:var(--verified); }
+.btn-primary { background:var(--accent); border-color:var(--accent); color:#1a1200; font-weight:600; }
+.btn-primary:hover { background:#e0b878; border-color:#e0b878; color:#1a1200; }
+.verified-badge { display:flex; align-items:center; gap:5px; padding:4px 9px; border-radius:var(--radius-sm); background:var(--verified-dim); border:1px solid rgba(77,158,117,0.2); font-size:11px; font-weight:500; color:var(--verified); }
+.verified-badge svg { width:11px; height:11px; }
+
+/* Split panes */
+.split-container { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+.top-pane { height:50%; min-height:80px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.pane-label { padding:10px 24px 0; font-size:10px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); flex-shrink:0; }
+.code-area { flex:1; overflow-y:auto; padding:10px 24px 16px; }
+.code-area::-webkit-scrollbar { width:4px; }
+.code-area::-webkit-scrollbar-thumb { background:var(--border-md); border-radius:2px; }
+pre { font-family:var(--mono); font-size:12px; line-height:1.7; color:var(--text-secondary); white-space:pre-wrap; word-break:break-word; }
+.kw { color:#8fa8d4; } .cm { color:var(--text-muted); } .str { color:#8db89e; }
+.detail-view.historical .code-area pre { opacity:0.7; }
+.detail-view.historical .lineage-textarea { opacity:0.75; cursor:default; }
+
+.resize-handle { height:4px; background:transparent; border-top:1px solid var(--border); cursor:ns-resize; flex-shrink:0; position:relative; transition:background 0.15s; }
+.resize-handle:hover { background:var(--border-md); }
+.resize-handle::after { content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:32px; height:3px; background:var(--border-md); border-radius:2px; }
+
+.bottom-pane { flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:100px; }
+.bottom-pane-header { padding:10px 24px 8px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.bottom-pane-label { font-size:10px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); }
+.lineage-hint { font-size:11px; color:var(--text-muted); }
+.lineage-editor-wrap { flex:1; padding:0 24px 10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; }
+.lineage-textarea { width:100%; min-height:80px; background:var(--bg-3); border:1px solid var(--border-md); border-radius:var(--radius); color:var(--text-primary); font-family:var(--mono); font-size:12px; line-height:1.7; padding:10px 12px; resize:none; outline:none; transition:border-color 0.15s; flex-shrink:0; }
+.lineage-textarea:focus { border-color:var(--accent); }
+.lineage-textarea.dirty { border-color:rgba(212,169,106,0.4); }
+.lineage-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.lineage-status { font-size:11px; color:var(--text-muted); margin-left:auto; }
+.lineage-status.error { color:var(--danger); }
+
+/* Timeline */
+.timeline-strip { border-top:1px solid var(--border); padding:10px 24px 12px; flex-shrink:0; background:var(--bg-2); }
+.timeline-label { font-size:10px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px; }
+.timeline-track { display:flex; align-items:flex-start; overflow-x:auto; padding-bottom:4px; }
+.timeline-track::-webkit-scrollbar { height:3px; }
+.timeline-track::-webkit-scrollbar-thumb { background:var(--border-md); border-radius:2px; }
+.timeline-entry { display:flex; flex-direction:column; align-items:center; min-width:90px; position:relative; cursor:pointer; }
+.timeline-entry:not(:last-child)::after { content:''; position:absolute; top:7px; left:calc(50% + 7px); width:calc(100% - 14px); height:1px; background:var(--border-md); }
+.timeline-node { width:14px; height:14px; border-radius:50%; border:2px solid var(--border-md); background:var(--bg-3); z-index:1; transition:border-color 0.15s, transform 0.12s; flex-shrink:0; }
+.timeline-node.current        { border-color:var(--accent);   background:var(--accent); }
+.timeline-node.verified-node  { border-color:var(--verified); background:var(--verified); }
+.timeline-node.unverified-node{ border-color:var(--text-muted); background:var(--bg-3); }
+.timeline-node.active-history { border-color:var(--info) !important; background:var(--info) !important; transform:scale(1.2); }
+.timeline-entry:hover .timeline-node { transform:scale(1.15); }
+.timeline-entry:hover .timeline-node.active-history { transform:scale(1.25); }
+.timeline-date  { font-size:10px; color:var(--text-muted); margin-top:5px; font-family:var(--mono); }
+.timeline-ver   { font-size:10px; color:var(--verified); margin-top:2px; }
+.timeline-unver { font-size:10px; color:var(--text-muted); margin-top:2px; }
+.timeline-loading { font-size:11px; color:var(--text-muted); padding:4px 0; }
+
+/* Tooltip */
+.tooltip { position:fixed; background:var(--bg-4); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:5px 9px; font-size:11px; font-family:var(--mono); color:var(--text-secondary); pointer-events:none; z-index:300; opacity:0; transition:opacity 0.12s; white-space:nowrap; line-height:1.5; }
+.tooltip.show { opacity:1; }
+.tooltip-time  { color:var(--text-primary); font-weight:500; }
+.tooltip-label { color:var(--text-muted); font-size:10px; }
+
+/* Sync pill */
+.sync-pill { position:fixed; bottom:16px; right:16px; background:var(--bg-3); border:1px solid var(--border-md); border-radius:20px; padding:5px 10px; font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:100; }
+.sync-pill.show { opacity:1; }
+.sync-spinner { width:8px; height:8px; border:1.5px solid var(--border-md); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
+
+/* Panel resize handle */
+.panel-resize-handle { width:4px; background:transparent; border-left:1px solid var(--border); cursor:ew-resize; flex-shrink:0; position:relative; transition:background 0.15s; z-index:10; }
+.panel-resize-handle:hover, .panel-resize-handle.dragging { background:var(--border-md); border-left-color:var(--accent); }
+.panel-resize-handle::after { content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:3px; height:28px; background:var(--border-md); border-radius:2px; }
+.panel-resize-handle:hover::after, .panel-resize-handle.dragging::after { background:var(--accent); }
+
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel" style="position:relative;">
+    <div class="left-header">
+      <div class="app-wordmark">Lineage Studio</div>
+      <div class="active-repo-pill" id="activeRepoPill" onclick="toggleSwitcher()">
+        <div class="repo-pill-icon" id="pillIcon"></div>
+        <div class="repo-pill-meta">
+          <div class="repo-pill-name" id="pillName">Loading…</div>
+          <div class="repo-pill-sub"  id="pillSub"></div>
+        </div>
+        <svg class="repo-pill-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+
+    <div class="tree-scroll"><div class="tree-section" id="treeSection"></div></div>
+
+    <div class="left-footer">
+      <div class="status-dot loading" id="footerDot"></div>
+      <div class="status-text" id="footerStatus">Connecting…</div>
+    </div>
+
+    <!-- Repo switcher dropdown -->
+    <div class="repo-switcher-drop hidden" id="repoSwitcherDrop" style="position:absolute;top:0;bottom:0;">
+      <div class="switcher-header">
+        <span class="switcher-title">Repositories</span>
+        <button class="btn-close-switcher" onclick="toggleSwitcher()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="switcher-list" id="switcherList"></div>
+      <div class="switcher-footer">
+        <div class="switcher-footer-hint">Paused repos are skipped during refresh. Only affects your local view.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel resize handle -->
+  <div class="panel-resize-handle" id="panelResizeHandle"></div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right-panel" id="rightPanel">
+    <div class="empty-state" id="emptyState">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.22"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <div class="empty-title">Select an object</div>
+      <div class="empty-sub">Choose a view or procedure from the left panel</div>
+    </div>
+
+    <div class="detail-view" id="detailView" style="display:none; position:relative;">
+
+      <!-- History mode banner -->
+      <div class="history-banner" id="historyBanner" style="display:none;">
+        <div class="history-banner-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="history-banner-text">Historical snapshot — <strong id="historyDateLabel"></strong>. Read-only.</div>
+        <button class="btn-back-current" onclick="exitHistoryMode()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to current
+        </button>
+      </div>
+
+      <!-- Paused repo banner -->
+      <div class="paused-banner" id="pausedBanner" style="display:none;">
+        <div class="paused-banner-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div>
+        <div class="paused-banner-text">Read-only — this repo is paused and won't sync.</div>
+        <button class="btn-enable-repo" onclick="enableActiveRepo()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Enable
+        </button>
+      </div>
+
+      <!-- Topbar -->
+      <div class="detail-topbar">
+        <div class="detail-obj-type" id="objTypeBadge">VIEW</div>
+        <div class="detail-obj-name" id="objNameDisplay"></div>
+        <div class="topbar-actions" id="topbarActions">
+          <button class="btn" id="btnRefresh" onclick="doRefreshRepo()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh repo
+          </button>
+          <div id="verifyArea"></div>
+        </div>
+      </div>
+
+      <!-- Conflict notice (inline, shown after a stale-version write) -->
+      <div id="conflictNotice" style="display:none;"></div>
+
+      <!-- Split panes -->
+      <div class="split-container" id="splitContainer">
+        <div class="top-pane" id="topPane">
+          <div class="pane-label">Source definition</div>
+          <div class="code-area"><pre id="codeDisplay"></pre></div>
+        </div>
+        <div class="resize-handle" id="resizeHandle"></div>
+        <div class="bottom-pane">
+          <div class="bottom-pane-header">
+            <div class="bottom-pane-label">Lineage</div>
+            <div class="lineage-hint">source1, source2 → target</div>
+          </div>
+          <div class="lineage-editor-wrap">
+            <textarea class="lineage-textarea" id="lineageEditor" rows="4"
+              placeholder="e.g.  source1,source2 → target1;source3,source4 → target2"
+              oninput="onLineageEdit()"></textarea>
+            <div class="lineage-actions">
+              <button class="btn btn-primary" id="saveBtn" onclick="saveLineage()" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save &amp; verify
+              </button>
+              <button class="btn" id="discardBtn" onclick="discardEdit()" style="display:none">Discard</button>
+              <div class="lineage-status" id="lineageStatus"></div>
+            </div>
+          </div>
+          <div class="timeline-strip">
+            <div class="timeline-label">History</div>
+            <div class="timeline-track" id="timelineTrack"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail loading overlay -->
+      <div class="detail-loading" id="detailLoading" style="display:none;">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sync-pill" id="syncPill">
+  <div class="sync-spinner"></div>
+  <span id="syncPillText">Saving…</span>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+const defaultPort = 80;
+
+let currentPort = window.location.port;
+
+if(currentPort == "") {
+  currentPort = defaultPort;
+}
+
+const serverIp = window.location.hostname;
+
+
+const CONFIG = {
+  // Base URL of the gRPC-Web / ConnectRPC microservice.
+  // Change this to match your deployment.
+  serviceUrl: `http://${serverIp}:${currentPort}`,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GRPC CLIENT
+//
+// Implements the 7 RPCs from lineage_studio.proto using the Connect protocol
+// (application/connect+json) — a simple HTTP/POST transport that works in
+// any browser without a proxy.
+//
+// Wire format: POST /<package>.<Service>/<Method>
+//   Request:  JSON body   (field names are camelCase proto JSON names)
+//   Response: JSON body
+//
+// ConnectRPC error shape: { code, message }
+// Success shape:          the response message as JSON
+//
+// To switch to gRPC-Web binary framing swap the Content-Type and use
+// the generated protobuf stubs instead of plain JSON.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Wire format notes ──────────────────────────────────────────────────────
+// Protocol : Connect (application/json over HTTP/1.1)
+// Path     : POST <serviceUrl>/LineageStudioService/<MethodName>
+// The Connect-Protocol-Version header is required — without it the ConnectRPC
+// server treats the request as plain JSON/REST and CORS preflight may not
+// recognise it, causing the "AllowedHeaders" mismatch you observed.
+//
+// Proto JSON encoding rules (applied by the Go server automatically):
+//   snake_case fields  →  camelCase in JSON
+//   e.g.  repo_name    →  repoName
+//         object_type  →  objectType
+//         had_changes  →  hadChanges
+//   Timestamps         →  ISO-8601 strings  (e.g. "2025-11-02T14:32:07Z")
+//   Enum values        →  strings           (e.g. "WRITE_STATUS_OK")
+//
+// The proto uses `repeated HistoryEntry histories = 1` (field name "histories")
+// so the JSON key is "histories" — normalised below so all callers use .histories.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class GrpcClient {
+  constructor(baseUrl) {
+    this.base = baseUrl.replace(/\/$/, '');
+  }
+
+  async _call(method, body) {
+    const url = `${this.base}/LineageStudioService/${method}`;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type':             'application/json',
+          // Required by ConnectRPC — identifies this as a Connect protocol request.
+          // The Go server's connectcors.AllowedHeaders() list includes this header,
+          // so including it here ensures the CORS preflight succeeds.
+          'Connect-Protocol-Version': '1',
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (fetchErr) {
+      // Network error or CORS preflight rejection — give a helpful message
+      const isCors = fetchErr instanceof TypeError && fetchErr.message.includes('fetch');
+      throw new Error(
+        isCors
+          ? `CORS or network error reaching ${url}. Check the server is running and CORS is configured.`
+          : fetchErr.message
+      );
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Server returned non-JSON (HTTP ${res.status})`);
+    }
+
+    if (!res.ok) {
+      // ConnectRPC error envelope: { code, message }
+      const msg = data?.message || `HTTP ${res.status}`;
+      const err = new Error(msg);
+      err.code  = data?.code || 'unknown';
+      throw err;
+    }
+    return data;
+  }
+
+  // Returns { repos: RepoSummary[] }
+  // RepoSummary fields: name, databaseType, host, dbName, repoVersion, lastSyncedAt
+  getRepos() {
+    return this._call('GetRepos', {});
+  }
+
+  // Returns { repoVersion, objects: ObjectSummary[] }
+  getObjects(repoName) {
+    return this._call('GetObjects', { repoName });
+  }
+
+  // Returns { object: ObjectDetail, isHistorical }
+  // Pass historyHash to view a historical snapshot; leave empty for current.
+  getObject(repoName, objectName, historyHash = '') {
+    return this._call('GetObject', { repoName, objectName, historyHash });
+  }
+
+  // Returns { histories: HistoryEntry[] }
+  // NOTE: the proto field is named "histories" (not "history") — use .histories
+  getObjectHistory(repoName, objectName) {
+    return this._call('GetObjectHistory', { repoName, objectName });
+  }
+
+  // Returns { newRepoVersion, hadChanges }
+  refreshRepo(repoName) {
+    return this._call('RefreshRepo', { repoName });
+  }
+
+  // Returns { status, newRepoVersion, conflict? }
+  // status is a string: "WRITE_STATUS_OK" | "WRITE_STATUS_CONFLICT" | "WRITE_STATUS_DENIED"
+  verifyObjectLineage(repoName, objectName, repoVersion) {
+    return this._call('VerifyObjectLineage', { repoName, objectName, repoVersion });
+  }
+
+  // Returns { status, newRepoVersion, updatedObject?, conflict? }
+  changeLineage(repoName, objectName, lineage, repoVersion) {
+    return this._call('ChangeLineage', { repoName, objectName, lineage, repoVersion });
+  }
+}
+
+const client = new GrpcClient(CONFIG.serviceUrl);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLIENT-SIDE STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Repo color palette — assigned by index, purely cosmetic
+const REPO_COLORS = [
+  { color:'#d4a96a', dim:'rgba(212,169,106,0.15)' },
+  { color:'#7a9ec4', dim:'rgba(122,158,196,0.15)' },
+  { color:'#8ecfa8', dim:'rgba(142,207,168,0.15)' },
+  { color:'#c47a7a', dim:'rgba(196,122,122,0.15)' },
+  { color:'#a48eca', dim:'rgba(164,142,202,0.15)' },
+  { color:'#ca9a6a', dim:'rgba(202,154,106,0.15)' },
+];
+
+// In-memory repo cache — populated by GetRepos / GetObjects
+// Shape: { [repoName]: { summary: RepoSummary, objects: ObjectSummary[], repoVersion, color, colorDim } }
+let repoCache = {};
+
+// Paused repos — persisted to localStorage, purely client-side
+function loadPausedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem('ls_paused') || '[]')); }
+  catch { return new Set(); }
+}
+function savePausedSet(s) {
+  try { localStorage.setItem('ls_paused', JSON.stringify([...s])); } catch {}
+}
+let pausedRepos = loadPausedSet();
+
+// Active repo name (string, matches RepoSummary.name)
+let activeRepoName = null;
+
+// Currently displayed object name
+let currentObjName    = null;
+// Full ObjectDetail for the currently displayed object
+let currentObjDetail  = null;
+// The repoVersion the client last received (OCC token)
+let currentRepoVersion = null;
+
+let editDirty     = false;
+let historyMode   = false;
+let activeHistHash = null; // object_hash of the history entry being viewed
+
+let switcherOpen  = false;
+let isResizingV   = false;
+let isResizingH   = false;
+let startY = 0, startTopH = 0;
+let startX = 0, startW = 0;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function repoColor(name) {
+  const names = Object.keys(repoCache);
+  const idx = names.indexOf(name);
+  return REPO_COLORS[(idx < 0 ? 0 : idx) % REPO_COLORS.length];
+}
+
+function repoInitials(name) {
+  return name.split(/[_\-\s]/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+}
+
+function isRepoPaused(name) { return pausedRepos.has(name); }
+function isRepoReadOnly()   { return historyMode || isRepoPaused(activeRepoName); }
+
+function formatDateShort(ts) {
+  if (!ts) return '—';
+  const d = new Date(typeof ts === 'object' ? ts.seconds * 1000 : ts);
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'2-digit', timeZone:'UTC' });
+}
+
+function formatDateFull(ts) {
+  if (!ts) return '';
+  const d = new Date(typeof ts === 'object' ? ts.seconds * 1000 : ts);
+  const date = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone:'UTC' });
+  const time = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'UTC' }) + ' UTC';
+  return `${date} ${time}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════════════════════
+
+const tooltip = document.getElementById('tooltip');
+let tooltipTimer = null;
+
+function showTooltip(el, ts, extra) {
+  clearTimeout(tooltipTimer);
+  tooltip.innerHTML = `<div class="tooltip-time">${formatDateFull(ts)}</div>${extra ? `<div class="tooltip-label">${extra}</div>` : ''}`;
+  const r  = el.getBoundingClientRect();
+  const tw = 210;
+  let left = r.left + r.width / 2 - tw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+  tooltip.style.left = left + 'px';
+  tooltip.style.top  = (r.top - 44) + 'px';
+  tooltip.classList.add('show');
+}
+function hideTooltip() { tooltipTimer = setTimeout(() => tooltip.classList.remove('show'), 120); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SYNC PILL
+// ═══════════════════════════════════════════════════════════════════════════
+
+let syncPillTimer = null;
+function showSyncPill(msg) {
+  clearTimeout(syncPillTimer);
+  document.getElementById('syncPillText').textContent = msg;
+  document.getElementById('syncPill').classList.add('show');
+  syncPillTimer = setTimeout(() => document.getElementById('syncPill').classList.remove('show'), 2000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FOOTER
+// ═══════════════════════════════════════════════════════════════════════════
+
+function setFooter(state, text) {
+  // state: 'online' | 'paused' | 'loading' | 'error'
+  const dot = document.getElementById('footerDot');
+  dot.className = `status-dot ${state}`;
+  document.getElementById('footerStatus').textContent = text;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PILL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderPill() {
+  if (!activeRepoName) return;
+  const entry = repoCache[activeRepoName];
+  const paused = isRepoPaused(activeRepoName);
+  const { color, dim } = repoColor(activeRepoName);
+
+  document.getElementById('pillIcon').style.cssText = `background:${dim};color:${color};`;
+  document.getElementById('pillIcon').textContent   = repoInitials(activeRepoName);
+  document.getElementById('pillName').textContent   = activeRepoName;
+
+  const sub = entry?.summary
+    ? `${(entry.summary.databaseType || '').replace('DATABASE_TYPE_','').toLowerCase() || '?'} · ${entry.summary.host || ''}`
+    : '';
+  document.getElementById('pillSub').textContent = sub;
+
+  // Paused tag
+  let tag = document.getElementById('pillPausedTag');
+  if (paused) {
+    if (!tag) {
+      tag = document.createElement('span');
+      tag.id = 'pillPausedTag';
+      tag.className = 'pill-paused-tag';
+      tag.textContent = 'Paused';
+      document.getElementById('activeRepoPill').insertBefore(tag, document.querySelector('.repo-pill-caret'));
+    }
+  } else if (tag) {
+    tag.remove();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REPO SWITCHER
+// ═══════════════════════════════════════════════════════════════════════════
+
+function toggleSwitcher() {
+  switcherOpen = !switcherOpen;
+  document.getElementById('repoSwitcherDrop').classList.toggle('hidden', !switcherOpen);
+  document.getElementById('activeRepoPill').classList.toggle('open', switcherOpen);
+  if (switcherOpen) renderSwitcherList();
+}
+
+function renderSwitcherList() {
+  const list = document.getElementById('switcherList');
+  list.innerHTML = '';
+
+  const names = Object.keys(repoCache);
+  if (!names.length) {
+    list.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--text-muted);text-align:center">No repos loaded</div>';
+    return;
+  }
+
+  names.forEach(name => {
+    const entry   = repoCache[name];
+    const isActive  = name === activeRepoName;
+    const isPaused  = isRepoPaused(name);
+    const { color, dim } = repoColor(name);
+
+    const sub = entry?.summary
+      ? `${(entry.summary.databaseType || '').replace('DATABASE_TYPE_','').toLowerCase() || '?'} · ${entry.summary.host || ''}`
+      : '';
+
+    const toggleIcon = isPaused
+      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
+      : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+    const toggleTitle = isPaused ? 'Enable repo' : 'Pause repo';
+
+    const row = document.createElement('div');
+    row.className = `switcher-repo-row${isActive ? ' is-active' : ''}${isPaused ? ' is-disabled' : ''}`;
+    row.innerHTML = `
+      <div class="switcher-repo-icon" style="background:${dim};color:${color};">${repoInitials(name)}</div>
+      <div class="switcher-repo-meta">
+        <div class="switcher-repo-name">${name}</div>
+        <div class="switcher-repo-sub">${sub}</div>
+      </div>
+      <div class="switcher-repo-badges">
+        ${isPaused ? '<span class="disabled-badge">Paused</span>' : ''}
+        ${isActive  ? '<div class="active-dot"></div>' : ''}
+      </div>
+      <button class="btn-toggle-repo${isPaused ? ' is-disabled-btn' : ''}" title="${toggleTitle}">${toggleIcon}</button>
+    `;
+    row.querySelector('.btn-toggle-repo').addEventListener('click', e => {
+      e.stopPropagation();
+      toggleRepoPaused(name);
+    });
+    row.addEventListener('click', e => {
+      if (e.target.closest('.btn-toggle-repo')) return;
+      switchToRepo(name);
+    });
+    list.appendChild(row);
+  });
+}
+
+async function switchToRepo(name) {
+  if (name === activeRepoName) { toggleSwitcher(); return; }
+  toggleSwitcher();
+  activeRepoName  = name;
+  currentObjName  = null;
+  currentObjDetail = null;
+  editDirty       = false;
+  historyMode     = false;
+  activeHistHash  = null;
+  document.getElementById('emptyState').style.display  = 'flex';
+  document.getElementById('detailView').style.display  = 'none';
+  renderPill();
+  await loadObjects(name);
+}
+
+function toggleRepoPaused(name) {
+  if (pausedRepos.has(name)) pausedRepos.delete(name);
+  else                        pausedRepos.add(name);
+  savePausedSet(pausedRepos);
+  renderSwitcherList();
+  if (name === activeRepoName) {
+    renderPill();
+    renderFooterForActive();
+    if (currentObjDetail && !pausedRepos.has(name)) {
+      // Just un-paused — trigger a refresh to pull latest
+      doRefreshRepo();
+    } else if (currentObjDetail) {
+      // Just paused — re-render detail to apply read-only state
+      renderObjectDetail(currentObjDetail, false);
+    }
+  }
+}
+
+function enableActiveRepo() {
+  if (!isRepoPaused(activeRepoName)) return;
+  pausedRepos.delete(activeRepoName);
+  savePausedSet(pausedRepos);
+  renderSwitcherList();
+  renderPill();
+  renderFooterForActive();
+  doRefreshRepo();
+}
+
+function renderFooterForActive() {
+  if (!activeRepoName) return;
+  const paused = isRepoPaused(activeRepoName);
+  const ver    = repoCache[activeRepoName]?.repoVersion || '';
+  if (paused) {
+    setFooter('paused', 'Paused · not syncing');
+  } else {
+    setFooter('online', ver ? `Synced · ${ver.slice(0,7)}` : 'Synced');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TREE
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderTree(repoName) {
+  const section = document.getElementById('treeSection');
+  section.innerHTML = '';
+  const entry = repoCache[repoName];
+  if (!entry || !entry.objects) return;
+
+  const objects = entry.objects;
+  const views = objects.filter(o => o.objectType === 'OBJECT_TYPE_VIEW' || o.objectType === 1);
+  const procs = objects.filter(o => o.objectType === 'OBJECT_TYPE_PROCEDURE' || o.objectType === 2);
+
+  const eyeSvg  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const codeSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
+
+  const makeFolder = (icon, label, items) => {
+    if (!items.length) return;
+    const fId = `folder_${label}_${repoName}`;
+    const iId = `items_${label}_${repoName}`;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+      <div class="tree-folder open" id="${fId}" onclick="toggleFolder('${fId}','${iId}')">
+        ${icon} ${label}
+        <svg class="tree-folder-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="tree-items" id="${iId}"></div>`;
+    section.appendChild(wrap);
+
+    const itemsEl = document.getElementById(iId);
+    items.forEach(obj => {
+
+      const div = document.createElement('div');
+      div.className = `tree-item${obj.name === currentObjName ? ' selected' : ''}`;
+      div.id = 'item-' + obj.name;
+      div.innerHTML = `<span class="tree-item-name">${obj.name}</span>${obj.verified ? '<span class="verified-dot"></span>' : ''}`;
+      div.onclick = () => selectItem(obj.name);
+      itemsEl.appendChild(div);
+    });
+  };
+
+  makeFolder(eyeSvg,  'Views',      views);
+  makeFolder(codeSvg, 'Procedures', procs);
+}
+
+function toggleFolder(fId, iId) {
+  const f = document.getElementById(fId);
+  const i = document.getElementById(iId);
+  if (!f || !i) return;
+  f.classList.toggle('open');
+  i.style.display = f.classList.contains('open') ? '' : 'none';
+}
+
+function setTreeMessage(html) {
+  document.getElementById('treeSection').innerHTML = `<div class="tree-message">${html}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOAD REPOS (boot)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function boot() {
+  setFooter('loading', 'Connecting…');
+  try {
+    const res = await client.getRepos();
+    const repos = res.repos || [];
+    if (!repos.length) {
+      setFooter('error', 'No repos found');
+      setTreeMessage('<div class="tree-msg-icon">📭</div><p>No repositories found on the server.</p>');
+      return;
+    }
+    repos.forEach(r => {
+      // r.databaseType arrives as a string enum e.g. "DATABASE_TYPE_ORACLE"
+      // r.lastSyncedAt arrives as an ISO-8601 string or null
+      repoCache[r.name] = { summary: r, objects: null, repoVersion: r.repoVersion };
+    });
+    // Pick first repo as active
+    activeRepoName = repos[0].name;
+    renderPill();
+    renderSwitcherList();
+    await loadObjects(activeRepoName);
+  } catch (err) {
+    setFooter('error', 'Connection failed');
+    setTreeMessage(`<div class="tree-msg-icon">⚠️</div><p>Could not reach server.<br><small>${err.message}</small></p><button onclick="boot()">Retry</button>`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOAD OBJECTS for a repo
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadObjects(repoName) {
+  setTreeMessage('<div class="tree-msg-icon" style="animation:pulse 1s infinite">⬤</div><p>Loading objects…</p>');
+  setFooter('loading', 'Loading…');
+  try {
+    const res = await client.getObjects(repoName);
+    repoCache[repoName] = {
+      ...repoCache[repoName],
+      objects: res.objects || [],
+      repoVersion: res.repoVersion,
+    };
+    
+    currentRepoVersion = res.repoVersion;
+    renderTree(repoName);
+    renderFooterForActive();
+  } catch (err) {
+    setFooter('error', 'Failed to load');
+    setTreeMessage(`<div class="tree-msg-icon">⚠️</div><p>Failed to load objects.<br><small>${err.message}</small></p><button onclick="loadObjects('${repoName}')">Retry</button>`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REFRESH REPO (git pull only)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function doRefreshRepo() {
+  if (isRepoPaused(activeRepoName)) return;
+  if (historyMode) exitHistoryMode();
+
+  const btn = document.getElementById('btnRefresh');
+  btn.disabled = true;
+  setFooter('loading', 'Syncing…');
+  showSyncPill('Refreshing repo…');
+
+  try {
+    const res = await client.refreshRepo(activeRepoName);
+    repoCache[activeRepoName].repoVersion = res.newRepoVersion;
+    currentRepoVersion = res.newRepoVersion;
+    renderFooterForActive();
+
+    if (res.hadChanges) {
+      // Re-fetch the object tree since new objects may have appeared
+      await loadObjects(activeRepoName);
+      // If we had an object open, reload it to get the latest version
+      if (currentObjName) await selectItem(currentObjName);
+    }
+    showSyncPill(res.hadChanges ? 'Repo updated' : 'Already up to date');
+  } catch (err) {
+    setFooter('error', `Refresh failed: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SELECT OBJECT
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function selectItem(name) {
+  document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById('item-' + name);
+  if (el) el.classList.add('selected');
+
+  currentObjName  = name;
+  editDirty       = false;
+  historyMode     = false;
+  activeHistHash  = null;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('detailView').style.display = 'flex';
+  showDetailLoading(true);
+  clearConflictNotice();
+
+  try {
+    // Fetch object detail and history in parallel
+    const [detailRes, histRes] = await Promise.all([
+      client.getObject(activeRepoName, name),
+      client.getObjectHistory(activeRepoName, name),
+    ]);
+
+    currentObjDetail   = detailRes.object;
+    currentRepoVersion = detailRes.object.repoVersion;
+
+    renderObjectDetail(detailRes.object, false);
+    renderTimeline(histRes.histories || [], null);
+  } catch (err) {
+    showDetailError(err.message);
+  } finally {
+    showDetailLoading(false);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER OBJECT DETAIL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderObjectDetail(obj, isHist) {
+  const isPaused = isRepoPaused(activeRepoName);
+  const dv = document.getElementById('detailView');
+  dv.classList.toggle('historical', isHist);
+  dv.classList.toggle('repo-paused', isPaused && !isHist);
+
+  // Banners
+  document.getElementById('pausedBanner').style.display   = (isPaused && !isHist) ? 'flex' : 'none';
+  document.getElementById('historyBanner').style.display  = isHist ? 'flex' : 'none';
+  if (isHist) {
+    const label = formatDateFull(obj.createdAt);
+    document.getElementById('historyDateLabel').textContent = label;
+  }
+
+  // Type badge
+  const isProc = obj.objectType === 'OBJECT_TYPE_PROCEDURE' || obj.objectType === 2;
+  const badge = document.getElementById('objTypeBadge');
+  badge.textContent = isProc ? 'PROCEDURE' : 'VIEW';
+  badge.className   = isProc ? 'detail-obj-type proc' : 'detail-obj-type';
+  document.getElementById('objNameDisplay').textContent = obj.name;
+
+  // Topbar actions
+  const topActions = document.getElementById('topbarActions');
+  if (isHist || isPaused) {
+    topActions.style.opacity       = isHist ? '0.4' : '0.25';
+    topActions.style.pointerEvents = 'none';
+  } else {
+    topActions.style.opacity       = '';
+    topActions.style.pointerEvents = '';
+  }
+  if (!isHist) renderVerifyArea(obj, isPaused);
+
+  // Source code
+  document.getElementById('codeDisplay').innerHTML = highlight(obj.sourceCode || '');
+
+  // Lineage textarea
+  const ta = document.getElementById('lineageEditor');
+  ta.value    = obj.lineage || '';
+  ta.readOnly = isHist || isPaused;
+  ta.classList.remove('dirty');
+  document.getElementById('saveBtn').style.display    = 'none';
+  document.getElementById('discardBtn').style.display = 'none';
+  document.getElementById('lineageStatus').textContent = '';
+  editDirty = false;
+}
+
+function renderVerifyArea(obj, readonly) {
+  const va = document.getElementById('verifyArea');
+  if (obj.verified) {
+    va.innerHTML = `<div class="verified-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Verified</div>`;
+  } else if (readonly) {
+    va.innerHTML = '';
+  } else {
+    va.innerHTML = `<button class="btn btn-verify" onclick="doVerify()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Verify lineage</button>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HISTORY MODE
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function enterHistoryMode(objectHash) {
+  if (!currentObjName) return;
+  historyMode    = true;
+  activeHistHash = objectHash;
+  showDetailLoading(true);
+  clearConflictNotice();
+  try {
+    const res = await client.getObject(activeRepoName, currentObjName, objectHash);
+    renderObjectDetail(res.object, true);
+    // Re-render timeline with this node highlighted
+    const histRes = await client.getObjectHistory(activeRepoName, currentObjName);
+    renderTimeline(histRes.histories || [], objectHash);
+  } catch (err) {
+    showDetailError(err.message);
+  } finally {
+    showDetailLoading(false);
+  }
+}
+
+function exitHistoryMode() {
+  historyMode    = false;
+  activeHistHash = null;
+  if (currentObjDetail) {
+    renderObjectDetail(currentObjDetail, false);
+    // Re-render timeline without highlight
+    client.getObjectHistory(activeRepoName, currentObjName)
+      .then(r => renderTimeline(r.histories || [], null))
+      .catch(() => {});
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TIMELINE
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderTimeline(history, activeHash) {
+  const track = document.getElementById('timelineTrack');
+  track.innerHTML = '';
+  if (!history.length) {
+    track.innerHTML = '<span class="timeline-loading">No history</span>';
+    return;
+  }
+
+  history.forEach((h, i) => {
+    const isCurrent = i === 0;
+    const isActive  = h.objectHash === activeHash;
+
+    let nodeClass = 'timeline-node ';
+    if (isActive)        nodeClass += 'active-history';
+    else if (isCurrent)  nodeClass += 'current';
+    else if (h.verified) nodeClass += 'verified-node';
+    else                 nodeClass += 'unverified-node';
+
+    const entry = document.createElement('div');
+    entry.className = 'timeline-entry';
+    entry.innerHTML = `
+      <div class="${nodeClass}"></div>
+      <div class="timeline-date">${formatDateShort(h.createdAt)}</div>
+      ${h.verified ? '<div class="timeline-ver">✓ verified</div>' : '<div class="timeline-unver">unverified</div>'}
+    `;
+
+    const node   = entry.querySelector('.timeline-node');
+    const verStr = h.verified ? 'verified' : 'unverified';
+    entry.addEventListener('mouseenter', () => showTooltip(node, h.createdAt, isCurrent ? `current · ${verStr}` : verStr));
+    entry.addEventListener('mouseleave', hideTooltip);
+
+    entry.addEventListener('click', () => {
+      if (isCurrent && !historyMode) return;
+      if (isCurrent) { exitHistoryMode(); return; }
+      enterHistoryMode(h.objectHash);
+    });
+
+    track.appendChild(entry);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LINEAGE EDITING
+// ═══════════════════════════════════════════════════════════════════════════
+
+function onLineageEdit() {
+  if (isRepoReadOnly()) return;
+  const ta = document.getElementById('lineageEditor');
+  editDirty = ta.value !== (currentObjDetail?.lineage || '');
+  ta.classList.toggle('dirty', editDirty);
+  document.getElementById('saveBtn').style.display    = editDirty ? 'flex' : 'none';
+  document.getElementById('discardBtn').style.display = editDirty ? 'flex' : 'none';
+  document.getElementById('lineageStatus').textContent = editDirty ? 'Unsaved changes' : '';
+  document.getElementById('lineageStatus').className   = 'lineage-status';
+}
+
+function discardEdit() {
+  if (isRepoReadOnly()) return;
+  document.getElementById('lineageEditor').value = currentObjDetail?.lineage || '';
+  document.getElementById('lineageEditor').classList.remove('dirty');
+  editDirty = false;
+  document.getElementById('saveBtn').style.display    = 'none';
+  document.getElementById('discardBtn').style.display = 'none';
+  document.getElementById('lineageStatus').textContent = '';
+  clearConflictNotice();
+}
+
+async function saveLineage() {
+  if (!currentObjName || !editDirty || isRepoReadOnly()) return;
+  const lineage = document.getElementById('lineageEditor').value;
+  setLineageStatus('Saving…', false);
+  setBtnsLoading(true);
+  try {
+    const res = await client.changeLineage(activeRepoName, currentObjName, lineage, currentRepoVersion);
+    if (res.status === 'WRITE_STATUS_OK' || res.status === 1) {
+      currentObjDetail   = res.updatedObject;
+      currentRepoVersion = res.newRepoVersion;
+      repoCache[activeRepoName].repoVersion = res.newRepoVersion;
+      // Update tree dot
+      updateTreeDot(currentObjName, true);
+      renderObjectDetail(res.updatedObject, false);
+      // Refresh timeline
+      const histRes = await client.getObjectHistory(activeRepoName, currentObjName);
+      renderTimeline(histRes.histories || [], null);
+      renderFooterForActive();
+      showSyncPill('Saved & verified');
+    } else if (res.status === 'WRITE_STATUS_CONFLICT' || res.status === 2) {
+      handleConflict(res.conflict, 'lineage');
+    } else {
+      setLineageStatus(`Server error: ${res.status}`, true);
+    }
+  } catch (err) {
+    setLineageStatus(err.message, true);
+  } finally {
+    setBtnsLoading(false);
+  }
+}
+
+async function doVerify() {
+  if (!currentObjName || isRepoReadOnly()) return;
+  const btn = document.getElementById('verifyArea').querySelector('button');
+  if (btn) btn.disabled = true;
+  showSyncPill('Verifying…');
+  try {
+
+    currentRepoVersion = repoCache[activeRepoName].repoVersion;
+    
+    const res = await client.verifyObjectLineage(activeRepoName, currentObjName, currentRepoVersion);
+    if (res.status === 'WRITE_STATUS_OK' || res.status === 1) {
+      currentRepoVersion = res.newRepoVersion;
+      repoCache[activeRepoName].repoVersion = res.newRepoVersion;
+      if (currentObjDetail) currentObjDetail.verified = true;
+      updateTreeDot(currentObjName, true);
+      renderVerifyArea(currentObjDetail, false);
+      // Refresh timeline
+      const histRes = await client.getObjectHistory(activeRepoName, currentObjName);
+      renderTimeline(histRes.histories || [], null);
+      renderFooterForActive();
+      showSyncPill('Lineage verified');
+    } else if (res.status === 'WRITE_STATUS_CONFLICT' || res.status === 2) {
+      handleConflict(res.conflict, 'verify');
+    } else {
+      if (btn) btn.disabled = false;
+    }
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    showSyncPill(`Error: ${err.message}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFLICT HANDLING
+// ═══════════════════════════════════════════════════════════════════════════
+
+function handleConflict(conflict, context) {
+  // conflict: { currentRepoVersion, currentObject }
+  const newVer = conflict?.currentRepoVersion || '';
+  const notice = document.getElementById('conflictNotice');
+  notice.style.display = 'block';
+  notice.innerHTML = `
+    <div class="conflict-notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div class="conflict-notice-body">
+        <div class="conflict-notice-title">Repo updated by another writer</div>
+        <div class="conflict-notice-detail">Their version: ${newVer.slice(0,7)} · Your version: ${currentRepoVersion.slice(0,7)}</div>
+        <div class="conflict-notice-actions">
+          <button class="primary" onclick="resolveConflictSync()">Sync &amp; reload</button>
+          <button onclick="clearConflictNotice()">Dismiss</button>
+        </div>
+      </div>
+    </div>`;
+  // Update version so we don't keep trying with stale token
+  if (newVer) currentRepoVersion = newVer;
+}
+
+function clearConflictNotice() {
+  const n = document.getElementById('conflictNotice');
+  n.style.display = 'none';
+  n.innerHTML = '';
+}
+
+async function resolveConflictSync() {
+  clearConflictNotice();
+  discardEdit();
+  await selectItem(currentObjName);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function updateTreeDot(name, verified) {
+  const el = document.getElementById('item-' + name);
+  if (!el) return;
+  if (verified && !el.querySelector('.verified-dot')) {
+    const dot = document.createElement('span');
+    dot.className = 'verified-dot';
+    el.appendChild(dot);
+  }
+  // Also update the in-memory objects list
+  const entry = repoCache[activeRepoName];
+  if (entry?.objects) {
+    const obj = entry.objects.find(o => o.name === name);
+    if (obj) obj.verified = verified;
+  }
+}
+
+function showDetailLoading(show) {
+  document.getElementById('detailLoading').style.display = show ? 'flex' : 'none';
+}
+
+function showDetailError(msg) {
+  document.getElementById('codeDisplay').innerHTML = `<span style="color:var(--danger)">${msg}</span>`;
+  document.getElementById('lineageEditor').value = '';
+}
+
+function setLineageStatus(msg, isError) {
+  const el = document.getElementById('lineageStatus');
+  el.textContent = msg;
+  el.className   = isError ? 'lineage-status error' : 'lineage-status';
+}
+
+function setBtnsLoading(loading) {
+  const s = document.getElementById('saveBtn');
+  const d = document.getElementById('discardBtn');
+  s.disabled = loading;
+  d.disabled = loading;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SYNTAX HIGHLIGHT (unchanged)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function highlight(code) {
+  if (!code) return '';
+  const kws = ['CREATE','OR','REPLACE','VIEW','AS','SELECT','FROM','JOIN','WHERE','ON','LEFT','PROCEDURE','BEGIN','END','MERGE','INTO','USING','WHEN','MATCHED','THEN','UPDATE','SET','NOT','INSERT','VALUES','EXECUTE','IMMEDIATE','COMMIT','ROLLBACK','RAISE','EXCEPTION','OTHERS','COUNT','SUM','AVG','ROUND','TRUNC','DISTINCT','GROUP','BY','AND','IN','NUMBER','DATE','SYSDATE','BETWEEN','EXTRACT','YEAR','MONTH','ADD_MONTHS','NULLIF','USER','DBMS_MVIEW','REFRESH','TRUNCATE','TABLE','IS','NULL','RETURNS','LANGUAGE','UNION','ALL','OVER','PARTITION','MIN','MAX','GETDATE','DATEADD','JSON_VALUE'];
+  let h = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  kws.forEach(k => { h = h.replace(new RegExp(`\\b${k}\\b`,'g'), `<span class="kw">${k}</span>`); });
+  h = h.replace(/--[^\n]*/g, m => `<span class="cm">${m}</span>`);
+  h = h.replace(/'([^']*)'/g, `<span class="str">'$1'</span>`);
+  return h;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RESIZE HANDLES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Vertical (top/bottom panes)
+const handle  = document.getElementById('resizeHandle');
+const topPane = document.getElementById('topPane');
+const splitC  = document.getElementById('splitContainer');
+handle.addEventListener('mousedown', e => {
+  isResizingV = true; startY = e.clientY; startTopH = topPane.offsetHeight;
+  document.body.style.cursor = 'ns-resize'; document.body.style.userSelect = 'none';
+});
+
+// Horizontal (left panel width)
+const panelHandle = document.getElementById('panelResizeHandle');
+const leftPanel   = document.querySelector('.left-panel');
+const MIN_LEFT = 180, MAX_LEFT = 520;
+panelHandle.addEventListener('mousedown', e => {
+  isResizingH = true; startX = e.clientX; startW = leftPanel.offsetWidth;
+  panelHandle.classList.add('dragging');
+  document.body.style.cursor = 'ew-resize'; document.body.style.userSelect = 'none';
+});
+
+window.addEventListener('mousemove', e => {
+  if (isResizingV) {
+    const newH = Math.max(80, Math.min(startTopH + e.clientY - startY, splitC.offsetHeight - 120));
+    topPane.style.height = newH + 'px'; topPane.style.flex = 'none';
+  }
+  if (isResizingH) {
+    const newW = Math.max(MIN_LEFT, Math.min(startW + e.clientX - startX, MAX_LEFT));
+    leftPanel.style.width = newW + 'px'; leftPanel.style.minWidth = newW + 'px';
+    document.getElementById('repoSwitcherDrop').style.width = newW + 'px';
+    tooltip.classList.remove('show');
+  }
+});
+window.addEventListener('mouseup', () => {
+  if (isResizingV) { isResizingV = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; }
+  if (isResizingH) { isResizingH = false; panelHandle.classList.remove('dragging'); document.body.style.cursor = ''; document.body.style.userSelect = ''; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS & OUTSIDE CLICK
+// ═══════════════════════════════════════════════════════════════════════════
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (switcherOpen)    { toggleSwitcher(); return; }
+    if (historyMode)     { exitHistoryMode(); return; }
+    if (editDirty)       { discardEdit(); }
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!switcherOpen) return;
+  if (!e.target.closest('#repoSwitcherDrop') && !e.target.closest('#activeRepoPill')) {
+    switcherOpen = false;
+    document.getElementById('repoSwitcherDrop').classList.add('hidden');
+    document.getElementById('activeRepoPill').classList.remove('open');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════════
+
+boot();
+</script>
+</body>
+</html>

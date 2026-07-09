@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lineage Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f0f;--bg-2:#161616;--bg-3:#1c1c1c;--bg-4:#222222;--bg-hover:#262626;
+  --border:rgba(255,255,255,0.07);--border-md:rgba(255,255,255,0.12);--border-strong:rgba(255,255,255,0.18);
+  --text-primary:#f0ede8;--text-secondary:#8a8682;--text-muted:#555250;
+  --accent:#d4a96a;--accent-dim:rgba(212,169,106,0.12);--accent-dim2:rgba(212,169,106,0.06);
+  --verified:#4d9e75;--verified-dim:rgba(77,158,117,0.12);
+  --danger:#c0534a;--info:#5a8fc4;--info-dim:rgba(90,143,196,0.10);
+  --up-color:#4d9e75;--down-color:#5a8fc4;
+  --radius:8px;--radius-sm:5px;
+  --font:'Instrument Sans',sans-serif;--mono:'Geist Mono',monospace;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-primary);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Left panel ── */
+.left-panel{width:292px;min-width:200px;max-width:480px;background:var(--bg-2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative}
+.left-header{padding:14px 14px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.app-wordmark{font-size:12px;font-weight:500;color:var(--text-muted);letter-spacing:0.09em;text-transform:uppercase;margin-bottom:10px}
+
+/* ── Repo pill ── */
+.repo-pill{display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--bg-3);border:1px solid var(--border-md);border-radius:var(--radius);cursor:pointer;transition:background 0.13s,border-color 0.13s;user-select:none;margin-bottom:10px}
+.repo-pill:hover{background:var(--bg-4);border-color:var(--border-strong)}
+.repo-pill.open{border-color:var(--accent);background:var(--accent-dim2)}
+.repo-pill-icon{width:26px;height:26px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700}
+.repo-pill-meta{flex:1;min-width:0}
+.repo-pill-name{font-size:13px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.repo-pill-sub{font-size:10.5px;color:var(--text-muted);font-family:var(--mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.repo-pill-caret{color:var(--text-muted);transition:transform 0.18s;flex-shrink:0;font-size:10px}
+.repo-pill.open .repo-pill-caret{transform:rotate(180deg);color:var(--accent)}
+
+/* ── Repo switcher dropdown ── */
+.repo-switcher{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg-2);z-index:60;display:flex;flex-direction:column;transform:translateY(-6px);opacity:0;pointer-events:none;transition:opacity 0.15s,transform 0.15s}
+.repo-switcher.open{opacity:1;pointer-events:all;transform:translateY(0)}
+.switcher-header{padding:14px 14px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-shrink:0}
+.switcher-title{font-size:12px;font-weight:500;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;flex:1}
+.switcher-close{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-radius:var(--radius-sm);transition:background 0.12s}
+.switcher-close:hover{background:var(--bg-hover);color:var(--text-primary)}
+.switcher-list{flex:1;overflow-y:auto;padding:6px 8px}
+.switcher-list::-webkit-scrollbar{width:4px}
+.switcher-list::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:2px}
+.switcher-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;transition:background 0.12s;margin-bottom:2px}
+.switcher-row:hover{background:var(--bg-hover)}
+.switcher-row.is-active{background:var(--accent-dim2)}
+.switcher-row-icon{width:26px;height:26px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700}
+.switcher-row-meta{flex:1;min-width:0}
+.switcher-row-name{font-size:12.5px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.switcher-row-sub{font-size:10.5px;color:var(--text-muted);font-family:var(--mono);margin-top:1px}
+.active-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--accent-dim);flex-shrink:0}
+.switcher-footer{padding:8px 14px 10px;border-top:1px solid var(--border);flex-shrink:0;font-size:11px;color:var(--text-muted);line-height:1.5}
+
+/* ── Mode toggle ── */
+.mode-toggle{display:flex;background:var(--bg-3);padding:3px;border-radius:var(--radius-sm);gap:2px;margin-bottom:10px}
+.mode-btn{flex:1;padding:6px 0;border:none;background:transparent;color:var(--text-muted);font-size:11px;font-weight:500;cursor:pointer;border-radius:4px;font-family:var(--font);transition:all 0.12s;display:flex;align-items:center;justify-content:center;gap:5px}
+.mode-btn.active{background:var(--bg-4);color:var(--text-primary);border:1px solid var(--border-md)}
+.mode-btn svg{width:12px;height:12px;flex-shrink:0}
+
+.search-wrap{position:relative}
+.search-input{width:100%;padding:8px 10px 8px 34px;background:var(--bg-3);border:1px solid var(--border-md);border-radius:var(--radius);color:var(--text-primary);font-family:var(--font);font-size:13px;outline:none;transition:border-color 0.15s}
+.search-input::placeholder{color:var(--text-muted)}
+.search-input:focus{border-color:var(--accent)}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text-muted);pointer-events:none}
+
+.section-label{padding:10px 14px 5px;font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);flex-shrink:0}
+.results-scroll{flex:1;overflow-y:auto}
+.results-scroll::-webkit-scrollbar{width:4px}
+.results-scroll::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:2px}
+.result-item{display:flex;align-items:center;gap:9px;padding:7px 14px;cursor:pointer;transition:background 0.12s;border-bottom:1px solid var(--border)}
+.result-item:hover{background:var(--bg-hover)}
+.result-item.active{background:var(--accent-dim)}
+.result-item.active .ri-name{color:var(--accent)}
+.ri-icon{width:26px;height:26px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700}
+.ri-icon.table    {background:var(--verified-dim);color:var(--verified)}
+.ri-icon.view     {background:var(--info-dim);color:var(--info)}
+.ri-icon.procedure{background:var(--accent-dim);color:var(--accent)}
+.ri-meta{flex:1;min-width:0}
+.ri-name{font-size:12.5px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)}
+.ri-sub{font-size:10.5px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── Left footer ── */
+.left-footer{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0}
+.footer-row1{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.depth-label{font-size:11px;color:var(--text-muted);flex-shrink:0}
+.depth-toggle{display:flex;background:var(--bg-3);padding:3px;border-radius:var(--radius-sm);gap:2px;flex:1}
+.dt-btn{flex:1;padding:5px 0;border:none;background:transparent;color:var(--text-muted);font-size:11px;font-weight:500;cursor:pointer;border-radius:4px;font-family:var(--font);transition:all 0.12s}
+.dt-btn.active{background:var(--bg-4);color:var(--text-primary);border:1px solid var(--border-md)}
+.refresh-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-md);background:var(--bg-3);color:var(--text-muted);border-radius:var(--radius-sm);cursor:pointer;flex-shrink:0;transition:all 0.13s}
+.refresh-btn:hover{background:var(--bg-4);border-color:var(--border-strong);color:var(--text-primary)}
+.refresh-btn svg{width:13px;height:13px}
+.refresh-btn.spinning svg{animation:spin 0.7s linear infinite}
+.back-btn{display:none;align-items:center;gap:5px;padding:5px 10px;border-radius:var(--radius-sm);border:1px solid var(--border-md);background:var(--bg-3);color:var(--text-secondary);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all 0.13s;width:100%}
+.back-btn:hover{background:var(--bg-4);border-color:var(--border-strong);color:var(--text-primary)}
+.back-btn svg{width:11px;height:11px}
+
+/* ── Footer sync pill ── */
+.footer-status{font-size:11px;color:var(--text-muted);margin-top:6px;min-height:16px;transition:color 0.2s}
+.footer-status.ok{color:var(--verified)}
+.footer-status.loading{color:var(--accent)}
+
+/* ── Panel resize ── */
+.panel-resize{width:4px;background:transparent;border-left:1px solid var(--border);cursor:ew-resize;flex-shrink:0;position:relative;transition:background 0.15s;z-index:10}
+.panel-resize:hover,.panel-resize.dragging{background:var(--border-md);border-left-color:var(--accent)}
+.panel-resize::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:3px;height:28px;background:var(--border-md);border-radius:2px}
+.panel-resize:hover::after,.panel-resize.dragging::after{background:var(--accent)}
+
+/* ── Graph area ── */
+.graph-area{flex:1;position:relative;overflow:hidden;background:var(--bg);cursor:grab;user-select:none}
+.graph-area.panning{cursor:grabbing}
+#graphCanvas{position:absolute;top:0;left:0}
+#nodesLayer{position:absolute;top:0;left:0;pointer-events:none}
+/* hidden measurement layer */
+#measureLayer{position:absolute;top:-9999px;left:-9999px;pointer-events:none;visibility:hidden}
+
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;pointer-events:none}
+.empty-icon{color:var(--text-muted);opacity:0.22}
+.empty-title{font-size:14px;font-weight:500;color:var(--text-muted)}
+.empty-sub{font-size:12px;color:var(--text-muted);opacity:0.7}
+
+/* ── NODE CARDS ── */
+.node-card{
+  position:absolute;width:240px;
+  background:var(--bg-2);border:1px solid var(--border-md);border-radius:var(--radius);
+  pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:border-color 0.15s,box-shadow 0.15s;
+  overflow:hidden;
+}
+.node-card:hover{border-color:var(--border-strong);box-shadow:0 6px 20px rgba(0,0,0,0.4)}
+.node-card.is-upstream  {border-left:3px solid var(--up-color)}
+.node-card.is-downstream{border-left:3px solid var(--down-color)}
+.node-card.is-both      {border-left:3px solid var(--accent)}
+.node-card.is-focus     {border:2px solid var(--accent);background:var(--accent-dim2);box-shadow:0 0 0 3px rgba(212,169,106,0.1),0 6px 20px rgba(0,0,0,0.4);z-index:50}
+.node-card.is-selfloop  {border-top:2px dashed rgba(212,169,106,0.5)}
+/* dev mode width variants */
+.node-card.dev-obj-card  {width:250px}
+.node-card.dev-table-card{width:210px}
+.node-card.dev-focus-card{width:260px;border:2px solid var(--accent);background:var(--accent-dim2);box-shadow:0 0 0 3px rgba(212,169,106,0.1),0 8px 24px rgba(0,0,0,0.5);z-index:50}
+
+.nc-header{padding:9px 12px 7px;flex-shrink:0}
+.nc-dir-row{display:flex;align-items:center;margin-bottom:4px;gap:4px;flex-wrap:wrap}
+.nc-dir-badge{font-size:9px;font-weight:500;padding:2px 7px;border-radius:10px;letter-spacing:0.03em;white-space:nowrap}
+.nc-dir-badge.upstream   {background:rgba(77,158,117,0.1);color:var(--up-color);border:1px solid rgba(77,158,117,0.2)}
+.nc-dir-badge.downstream {background:var(--info-dim);color:var(--down-color);border:1px solid rgba(90,143,196,0.2)}
+.nc-dir-badge.focus      {background:var(--accent-dim);color:var(--accent);border:1px solid rgba(212,169,106,0.25)}
+.nc-dir-badge.both       {background:rgba(255,255,255,0.04);color:var(--text-muted);border:1px solid var(--border-md)}
+.nc-dir-badge.selfloop   {background:rgba(212,169,106,0.08);color:var(--accent);border:1px solid rgba(212,169,106,0.2)}
+.nc-dir-badge.dev-view   {background:var(--info-dim);color:var(--info);border:1px solid rgba(90,143,196,0.25)}
+.nc-dir-badge.dev-proc   {background:var(--accent-dim);color:var(--accent);border:1px solid rgba(212,169,106,0.25)}
+.nc-dir-badge.dev-table  {background:var(--verified-dim);color:var(--verified);border:1px solid rgba(77,158,117,0.2)}
+.nc-dir-badge.no-src     {background:rgba(192,83,74,0.08);color:var(--danger);border:1px solid rgba(192,83,74,0.2)}
+.nc-dir-badge.no-tgt     {background:rgba(90,143,196,0.08);color:var(--info);border:1px solid rgba(90,143,196,0.2)}
+
+.nc-name{font-size:12px;font-weight:600;color:var(--text-primary);font-family:var(--mono);line-height:1.45;word-break:break-all}
+.is-focus .nc-name,.dev-focus-card .nc-name{color:var(--accent)}
+.nc-obj-schema-small{font-size:9.5px;color:var(--text-muted);font-family:var(--mono);margin-bottom:2px}
+
+.nc-divider{height:1px;background:var(--border);flex-shrink:0}
+.nc-section-label{padding:5px 12px 3px;font-size:9.5px;font-weight:500;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);flex-shrink:0}
+.nc-objects{overflow-y:auto;max-height:140px}
+.nc-objects::-webkit-scrollbar{width:3px}
+.nc-objects::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:2px}
+.nc-obj{display:flex;align-items:flex-start;gap:7px;padding:5px 12px;border-bottom:1px solid var(--border)}
+.nc-obj:last-child{border-bottom:none}
+.nc-obj-badge{font-size:8px;font-weight:700;text-transform:uppercase;padding:2px 5px;border-radius:3px;flex-shrink:0;margin-top:1px;letter-spacing:0.05em}
+.nc-obj-badge.view     {background:var(--info-dim);color:var(--info)}
+.nc-obj-badge.procedure{background:var(--accent-dim);color:var(--accent)}
+.nc-obj-badge.table    {background:var(--verified-dim);color:var(--verified)}
+.nc-obj-text{min-width:0}
+.nc-obj-schema{font-size:9.5px;color:var(--text-muted);font-family:var(--mono)}
+.nc-obj-name  {font-size:10.5px;color:var(--text-secondary);font-family:var(--mono);word-break:break-all;line-height:1.4}
+.nc-obj-more  {padding:4px 12px;font-size:10px;color:var(--text-muted);font-style:italic}
+.nc-empty-row {padding:5px 12px;font-size:10.5px;color:var(--text-muted);font-style:italic}
+
+/* ── Overlays ── */
+.focus-crumb{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--border-md);border-radius:var(--radius-sm);padding:5px 14px;font-size:11px;color:var(--text-secondary);z-index:20;pointer-events:none;white-space:nowrap;max-width:55%;overflow:hidden;text-overflow:ellipsis;display:none}
+.focus-crumb strong{color:var(--accent);font-family:var(--mono);font-weight:500}
+.dev-banner{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(90,143,196,0.12);border:1px solid rgba(90,143,196,0.3);border-radius:var(--radius-sm);padding:5px 14px;font-size:11px;color:var(--info);z-index:20;pointer-events:none;white-space:nowrap;display:none;align-items:center;gap:6px}
+.dev-banner strong{font-family:var(--mono);font-weight:500}
+
+/* ── Legend ── */
+.legend{position:absolute;bottom:16px;left:14px;background:var(--bg-2);border:1px solid var(--border-md);border-radius:var(--radius);padding:10px 14px;z-index:20;pointer-events:none;display:flex;flex-direction:column;gap:6px}
+.legend-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary)}
+.legend-stripe{width:4px;height:14px;border-radius:2px;flex-shrink:0}
+.legend-line{width:20px;height:2px;border-radius:1px;flex-shrink:0;position:relative}
+.legend-line::after{content:'▶';position:absolute;right:-2px;top:50%;transform:translateY(-50%);font-size:7px;line-height:1}
+.legend-dash{width:20px;height:2px;flex-shrink:0;border-top:2px dashed rgba(212,169,106,0.5)}
+
+/* ── Minimap ── */
+.minimap{position:absolute;bottom:16px;right:14px;width:170px;height:110px;background:var(--bg-2);border:1px solid var(--border-md);border-radius:var(--radius);overflow:hidden;z-index:20}
+#minimapCanvas{display:block;width:100%;height:100%}
+.minimap-finder{position:absolute;border:1.5px solid var(--accent);background:rgba(212,169,106,0.07);pointer-events:none;border-radius:2px}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel" id="leftPanel">
+
+    <!-- Repo switcher dropdown (overlays panel) -->
+    <div class="repo-switcher" id="repoSwitcher">
+      <div class="switcher-header">
+        <span class="switcher-title">Repositories</span>
+        <button class="switcher-close" onclick="closeSwitcher()">✕</button>
+      </div>
+      <div class="switcher-list" id="switcherList"></div>
+      <div class="switcher-footer">Click a repo to switch. Data is filtered per repo.</div>
+    </div>
+
+    <div class="left-header">
+      <div class="app-wordmark">Lineage Explorer</div>
+
+      <!-- Active repo pill -->
+      <div class="repo-pill" id="repoPill" onclick="toggleSwitcher()">
+        <div class="repo-pill-icon" id="repoPillIcon"></div>
+        <div class="repo-pill-meta">
+          <div class="repo-pill-name" id="repoPillName">Loading…</div>
+          <div class="repo-pill-sub"  id="repoPillSub"></div>
+        </div>
+        <span class="repo-pill-caret">▾</span>
+      </div>
+
+      <!-- Mode toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="modeNormalBtn" onclick="setMode('normal')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 9v4c0 1.66 4.03 3 9 3s9-1.34 9-3V9"/><path d="M3 13v4c0 1.66 4.03 3 9 3s9-1.34 9-3v-4"/></svg>
+          Table view
+        </button>
+        <button class="mode-btn" id="modeDevBtn" onclick="setMode('dev')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Developer
+        </button>
+      </div>
+
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" id="searchInput" placeholder="Search tables…" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="section-label" id="resultsLabel">All tables</div>
+    <div class="results-scroll" id="resultsList"></div>
+
+    <div class="left-footer">
+      <div class="footer-row1">
+        <span class="depth-label">Depth</span>
+        <div class="depth-toggle">
+          <button class="dt-btn" id="btn-d1"  onclick="setDepth(1)">+1</button>
+          <button class="dt-btn active" id="btn-d3" onclick="setDepth(3)">+3</button>
+          <button class="dt-btn" id="btn-dall" onclick="setDepth(99)">All</button>
+        </div>
+        <button class="refresh-btn" id="refreshBtn" onclick="doRefresh()" title="Refresh repo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+      <button class="back-btn" id="backBtn" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to previous
+      </button>
+      <div class="footer-status" id="footerStatus"></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL RESIZE ── -->
+  <div class="panel-resize" id="panelResize"></div>
+
+  <!-- ── GRAPH AREA ── -->
+  <div class="graph-area" id="graphArea">
+    <canvas id="graphCanvas"></canvas>
+    <div id="nodesLayer"></div>
+    <div id="measureLayer"></div>
+
+    <div class="empty-state" id="emptyState">
+      <svg class="empty-icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 9v4c0 1.66 4.03 3 9 3s9-1.34 9-3V9"/><path d="M3 13v4c0 1.66 4.03 3 9 3s9-1.34 9-3v-4"/></svg>
+      <div class="empty-title" id="emptyTitle">Select a table to explore</div>
+      <div class="empty-sub"  id="emptySub">Search on the left or click any item</div>
+    </div>
+
+    <div class="focus-crumb" id="focusCrumb">Lineage of <strong id="focusCrumbText"></strong></div>
+    <div class="dev-banner"  id="devBanner"><strong id="devBannerText"></strong> — dependencies &amp; impact</div>
+
+    <!-- Legend (content swapped per mode) -->
+    <div class="legend" id="legend">
+      <div class="legend-row" id="leg-focus-row"><div class="legend-stripe" style="background:var(--accent)"></div><span id="leg-focus">Selected</span></div>
+      <div class="legend-row"><div class="legend-stripe" style="background:var(--up-color)"></div><span id="leg-up">Upstream</span></div>
+      <div class="legend-row"><div class="legend-stripe" style="background:var(--down-color)"></div><span id="leg-down">Downstream</span></div>
+      <div class="legend-row"><div class="legend-line" style="background:var(--up-color);color:var(--up-color)"></div>Feeds into focus</div>
+      <div class="legend-row"><div class="legend-line" style="background:var(--down-color);color:var(--down-color)"></div>Flows out of focus</div>
+      <div class="legend-row" id="leg-selfloop-row" style="display:none"><div class="legend-dash"></div>Self-loop</div>
+    </div>
+
+    <div class="minimap" id="minimapWrap">
+      <canvas id="minimapCanvas" width="170" height="110"></canvas>
+      <div class="minimap-finder" id="minimapFinder"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// DATA MODEL
+//
+// VIEW entry:
+// {
+//   repo, schema, name, type:"view",
+//   sources: string[]    — tables/views this view reads from
+//   targets: string[]    — [viewName] when isSelfTarget:true (view IS the node)
+//   isSelfTarget: true
+// }
+// Views are a single logical unit (one SELECT), so sources/targets at the top
+// level are correct for both table mode and developer mode.
+//
+// PROCEDURE entry:
+// {
+//   repo, schema, name, type:"procedure",
+//   isSelfTarget: false,
+//   statements: [
+//     { sources: string[], targets: string[] },   // one per SQL statement
+//     ...
+//   ]
+// }
+//
+// Each statement maps to one real SQL operation (INSERT, UPDATE, DELETE, EXEC…).
+// Table mode iterates statements individually so only real source→target paths
+// appear in the graph.  Developer mode unions all statement sources/targets to
+// show the full reach of the procedure.
+//
+// Statement edge cases (same as before, now per-statement):
+//   sources:[], targets:["T"]  → static INSERT  (no upstream)
+//   sources:["T"], targets:[]  → statement only  (DELETE / EXEC / email)
+//   sources:["T"], targets:["T"] → self-loop     (UPDATE / MERGE on same table)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CONNECTRPC CLIENT
+//
+// Connects to the LineageExplorer service defined in lineage-explorer.proto.
+// Uses the Connect protocol (HTTP POST + JSON) — works in any browser with no
+// proxy, build step, or npm required.
+//
+// Server URL is derived from the page's own host so the HTML file works both
+// opened locally and served from a real server without changing the code.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const defaultPort = 6000;
+const serverIp    = window.location.hostname || 'localhost';
+const currentPort = window.location.port || defaultPort;
+
+const CONFIG = {
+  serviceUrl: `http://${serverIp}:${currentPort}`,
+};
+
+class GrpcClient {
+  constructor(baseUrl) {
+    this.base = baseUrl.replace(/\/$/, '');
+  }
+
+  async _call(method, body) {
+    const url = `${this.base}/LineageExplorer/${method}`;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type':             'application/json',
+          // Required by ConnectRPC — identifies this as a Connect protocol request.
+          // The Go server's connectcors.AllowedHeaders() list includes this header,
+          // ensuring the CORS preflight succeeds.
+          'Connect-Protocol-Version': '1',
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (fetchErr) {
+      const isCors = fetchErr instanceof TypeError && fetchErr.message.includes('fetch');
+      throw new Error(
+        isCors
+          ? `CORS or network error reaching ${url}. Check the server is running and CORS is configured.`
+          : fetchErr.message
+      );
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Server returned non-JSON (HTTP ${res.status})`);
+    }
+
+    if (!res.ok) {
+      const msg = data?.message || `HTTP ${res.status}`;
+      const err = new Error(msg);
+      err.code  = data?.code || 'unknown';
+      throw err;
+    }
+    return data;
+  }
+
+  // Returns { repos: RepoSummary[] }
+  // RepoSummary fields: name, databaseType, host, dbName, repoVersion
+  getRepos() {
+    return this._call('GetRepos', {});
+  }
+
+  // Returns { repoVersion, details: LineageDetail[], status }
+  // LineageDetail fields: repo, name (schema.objectname), type, statements:[{sources,target}]
+  getLineage(repoName, repoVersion = '') {
+    return this._call('GetLineage', { repoName, repoVersion });
+  }
+}
+
+const client = new GrpcClient(CONFIG.serviceUrl);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LIVE STATE
+//
+// REPOS and DATA are populated from the server at boot and on refresh.
+// They mirror the internal format used throughout the graph engine.
+//
+// Proto → internal format mapping:
+//
+//   LineageDetail.name  = "schema.objectname"
+//     → split on first '.' to get schema + name
+//     → if no '.', schema = '' and name = full string
+//
+//   LineageDetail.type  = "view" | "procedure"
+//     → view:      isSelfTarget:true, sources:[...st.sources], targets:[viewName]
+//     → procedure: isSelfTarget:false, statements:[{sources, targets}]
+//
+//   Statement.sources = repeated string  (array)
+//   Statement.target  = string           (single value in proto)
+//     → targets: target ? [target] : []
+//
+// The REPOS array also carries UI-only colour assignments (client-side only).
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Palette for repo colour coding — assigned by arrival index, never sent to server
+const REPO_COLORS = [
+  { color:'#d4a96a', dim:'rgba(212,169,106,0.15)' },
+  { color:'#7a9ec4', dim:'rgba(122,158,196,0.15)' },
+  { color:'#8ecfa8', dim:'rgba(142,207,168,0.15)' },
+  { color:'#c47a7a', dim:'rgba(196,122,122,0.15)' },
+  { color:'#a48eca', dim:'rgba(164,142,202,0.15)' },
+];
+
+// Live arrays — mutated by loadRepos() and loadLineage()
+let REPOS = [];  // { id, label, type, host, repoVersion, color, dim }
+let DATA  = [];  // internal lineage objects (same shape used throughout graph engine)
+
+// ── Proto → internal converters ──────────────────────────────────────────────
+
+function parseSchemaName(fullName) {
+  // "schema.objectname" → { schema, name }
+  // "objectname" (no dot) → { schema:'', name:fullName }
+  const dot = fullName.indexOf('.');
+  if (dot === -1) return { schema:'', name: fullName };
+  return { schema: fullName.slice(0, dot), name: fullName.slice(dot + 1) };
+}
+
+function protoDetailToInternal(detail) {
+  // detail: { repo, name:"schema.obj", type, statements:[{sources:[], target:""}] }
+  const { schema, name } = parseSchemaName(detail.name || '');
+  const type = (detail.type || '').toLowerCase(); // "view" | "procedure"
+
+  if (type === 'view') {
+    // A view is a single logical unit — all statement sources are merged,
+    // and the view's own name is the output node (isSelfTarget).
+    const allSources = [...new Set(
+      (detail.statements || []).flatMap(st => st.sources || [])
+    )];
+    return {
+      repo:        detail.repo,
+      schema,
+      name,
+      type:        'view',
+      sources:     allSources,
+      targets:     [name],   // the view IS the output node
+      isSelfTarget: true,
+    };
+  } else {
+    // Procedure: convert each proto Statement individually.
+    // Statement.target is a single string in the proto (not an array).
+    const statements = (detail.statements || []).map(st => ({
+      sources: st.sources || [],
+      targets: st.target ? [st.target] : [],
+    }));
+    return {
+      repo:        detail.repo,
+      schema,
+      name,
+      type:        'procedure',
+      isSelfTarget: false,
+      statements,
+    };
+  }
+}
+
+// ── Server loaders ────────────────────────────────────────────────────────────
+
+async function loadRepos() {
+  const res = await client.getRepos();
+  REPOS = (res.repos || []).map((r, i) => {
+    const palette = REPO_COLORS[i % REPO_COLORS.length];
+    return {
+      id:          r.name,
+      label:       r.name,
+      type:        (r.databaseType || '').replace('DATABASE_TYPE_', '').toLowerCase() || 'unknown',
+      host:        r.host || '',
+      repoVersion: r.repoVersion || '',
+      color:       palette.color,
+      dim:         palette.dim,
+    };
+  });
+}
+
+async function loadLineage(repoName) {
+  const repoEntry = REPOS.find(r => r.id === repoName);
+  const repoVersion = repoEntry ? repoEntry.repoVersion : '';
+  const res = await client.getLineage(repoName, repoVersion);
+
+  // Update stored repoVersion from server response
+  if (repoEntry && res.repoVersion) repoEntry.repoVersion = res.repoVersion;
+
+  const changed = res.status === 'LINEAGE_STATUS_OK';
+
+  if(changed){
+
+    // Remove old entries for this repo and replace with fresh data
+    DATA = DATA.filter(d => d.repo !== repoName);
+    DATA.push(...(res.details || []).map(protoDetailToInternal));
+
+  }
+
+  return res;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════════════
+let activeRepo  = null; // set by boot() once GetRepos responds
+let mode        = 'normal'; // 'normal' | 'dev'
+let focusNode   = null;     // normal: string (table/view name) | dev: {schema,name,type}
+let prevFocus   = [];
+let maxDepth    = 3;
+let panX = 0, panY = 0;
+let isPanning   = false, panStartX, panStartY;
+let isResizing  = false, resStartX, resStartW;
+let animFrame   = null;
+let switcherOpen = false;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REPO HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
+function repoData()  { return DATA.filter(r => r.repo === activeRepo); }
+function repoMeta()  { return REPOS.find(r => r.id === activeRepo) || REPOS[0]; }
+
+// ── Statement-aware union helpers ─────────────────────────────────────────────
+// Views use top-level sources/targets directly (single logical unit).
+// Procedures use statements array — these helpers return the union across all
+// statements, used by developer mode and the "Used by / Uses" card section.
+
+function objAllSources(obj) {
+  if (obj.isSelfTarget) return obj.sources; // view
+  return [...new Set(obj.statements.flatMap(st => st.sources))];
+}
+
+function objAllTargets(obj) {
+  if (obj.isSelfTarget) return obj.targets; // view
+  return [...new Set(obj.statements.flatMap(st => st.targets))];
+}
+
+// Self-loop detection: any statement where a source also appears in targets
+function objHasSelfLoop(obj) {
+  if (obj.isSelfTarget) return false;
+  return obj.statements.some(st => st.sources.some(s => st.targets.includes(s)));
+}
+
+// ── Node enumeration (table mode) ────────────────────────────────────────────
+// Collects all unique node names visible in normal mode.
+// For views: the view name IS the node (isSelfTarget).
+// For procedures: collect per-statement sources and targets individually —
+//   this ensures only tables that truly exist in the lineage appear as nodes.
+function allNodeNames() {
+  const names = new Set();
+  repoData().forEach(obj => {
+    if (obj.isSelfTarget) {
+      // View: sources are upstream nodes; view name itself is the output node
+      obj.sources.forEach(s => names.add(s));
+      names.add(obj.name);
+    } else {
+      // Procedure: collect from each statement individually
+      obj.statements.forEach(st => {
+        st.sources.forEach(s => names.add(s));
+        st.targets.forEach(t => names.add(t));
+      });
+    }
+  });
+  return [...names].sort();
+}
+
+// ── Object lookup helpers (used by "Used by / Uses" card section) ─────────────
+// These use the union of all statement sources/targets — the card section just
+// needs to know which objects touch a given node at all, not per-statement detail.
+
+function objectsForNode(nodeName) {
+  const seen = new Set();
+  return repoData().filter(obj => {
+    const srcs = objAllSources(obj);
+    const tgts = objAllTargets(obj);
+    const touches = srcs.includes(nodeName) ||
+      (obj.isSelfTarget ? obj.name === nodeName : tgts.includes(nodeName));
+    if (!touches) return false;
+    const k = obj.schema+'|'+obj.name+'|'+obj.type;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+}
+
+function objectsReadingFrom(nodeName) {
+  return repoData().filter(o => objAllSources(o).includes(nodeName));
+}
+
+function objectsWritingTo(nodeName) {
+  return repoData().filter(o => !o.isSelfTarget && objAllTargets(o).includes(nodeName));
+}
+
+// Is a given name a view's self-target node?
+function isViewNode(nodeName) {
+  return repoData().some(o => o.isSelfTarget && o.name === nodeName);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LAYOUT
+// NODE_W / GAP_X are constants. Heights are measured from DOM.
+// ══════════════════════════════════════════════════════════════════════════════
+const NODE_W_NORMAL = 240, NODE_W_DEV_OBJ = 250, NODE_W_DEV_TABLE = 210;
+const GAP_X = 90, GAP_Y = 22;
+
+// Measure actual rendered heights of cards in a hidden layer
+function measureCards(cardMap) {
+  // cardMap: { nodeId: DOMElement }
+  const ml = document.getElementById('measureLayer');
+  ml.innerHTML = '';
+  Object.values(cardMap).forEach(el => ml.appendChild(el.cloneNode(true)));
+  // Force layout
+  ml.getBoundingClientRect();
+  const heights = {};
+  const kids = ml.children;
+  let i = 0;
+  Object.keys(cardMap).forEach(id => {
+    heights[id] = kids[i] ? kids[i].offsetHeight : 80;
+    i++;
+  });
+  ml.innerHTML = '';
+  return heights;
+}
+
+// Place nodes in columns then sweep downward to eliminate overlap
+function sweepLayout(nodeIds, rankOf, heights) {
+  const cols = {};
+  nodeIds.forEach(id => {
+    const r = rankOf[id] ?? 0;
+    if (!cols[r]) cols[r] = [];
+    cols[r].push(id);
+  });
+
+  const positions = {};
+  Object.keys(cols).map(Number).sort((a,b)=>a-b).forEach(r => {
+    const ns = cols[r];
+    // Centre the column
+    const totalH = ns.reduce((s,id)=>s+(heights[id]||80)+GAP_Y, -GAP_Y);
+    let y = -totalH / 2;
+    ns.forEach(id => {
+      positions[id] = { x: r * (NODE_W_NORMAL + GAP_X), y };
+      y += (heights[id]||80) + GAP_Y;
+    });
+    // Sweep: push down any card that overlaps the previous one
+    for (let i = 1; i < ns.length; i++) {
+      const prev = ns[i-1], cur = ns[i];
+      const minY = positions[prev].y + (heights[prev]||80) + GAP_Y;
+      if (positions[cur].y < minY) positions[cur].y = minY;
+    }
+  });
+  return positions;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NORMAL MODE — table/view-node graph
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Normal mode edges ─────────────────────────────────────────────────────────
+// For views (isSelfTarget): one edge per source → viewName.
+// For procedures: one edge per SOURCE×TARGET pair WITHIN EACH STATEMENT.
+//   This is the critical fix — iterating statements individually prevents
+//   phantom cross-connections between unrelated sources and targets that happen
+//   to live in the same procedure but in different SQL statements.
+function normalEdges() {
+  const edges = []; // {from, to, obj, isSelfLoop}
+  repoData().forEach(obj => {
+    if (obj.isSelfTarget) {
+      // View: single logical unit — each source feeds into the view node
+      obj.sources.forEach(s => edges.push({from:s, to:obj.name, obj, isSelfLoop:false}));
+    } else {
+      // Procedure: iterate each statement independently
+      obj.statements.forEach(st => {
+        if (st.sources.length === 0) {
+          // Static INSERT — no upstream node; draw orphan stub to target
+          st.targets.forEach(t => edges.push({from:null, to:t, obj, isSelfLoop:false}));
+        } else if (st.targets.length === 0) {
+          // Statement-only (DELETE/EXEC/email) — no downstream node; draw stub from source
+          st.sources.forEach(s => edges.push({from:s, to:null, obj, isSelfLoop:false}));
+        } else {
+          // Normal statement: emit one edge per source×target pair within this statement only
+          st.sources.forEach(s => {
+            st.targets.forEach(t => {
+              edges.push({from:s, to:t, obj, isSelfLoop: s === t});
+            });
+          });
+        }
+      });
+    }
+  });
+  return edges;
+}
+
+function normalBFS(root, depth) {
+  const edges = normalEdges();
+  const upEdges=[], downEdges=[];
+  const visitedUp=new Set(), visitedDown=new Set();
+
+  function walkUp(n, d) {
+    if (d>=depth||visitedUp.has(n)) return; visitedUp.add(n);
+    edges.forEach(e => {
+      if (e.to===n && e.from!==null && e.from!==n) {
+        upEdges.push(e); walkUp(e.from, d+1);
+      }
+    });
+  }
+  function walkDown(n, d) {
+    if (d>=depth||visitedDown.has(n)) return; visitedDown.add(n);
+    edges.forEach(e => {
+      if (e.from===n && e.to!==null && e.to!==n) {
+        downEdges.push(e); walkDown(e.to, d+1);
+      }
+    });
+  }
+  walkUp(root,0); walkDown(root,0);
+
+  // Self-loops attached to root or any node in the lineage
+  const allNodes = new Set([root, ...upEdges.flatMap(e=>[e.from,e.to].filter(Boolean)),
+                                  ...downEdges.flatMap(e=>[e.from,e.to].filter(Boolean))]);
+  const selfLoopEdges = edges.filter(e=>e.isSelfLoop && allNodes.has(e.from));
+
+  const upSet   = new Set(upEdges.flatMap(e=>[e.from,e.to].filter(Boolean)));
+  const downSet = new Set(downEdges.flatMap(e=>[e.from,e.to].filter(Boolean)));
+  return {upEdges, downEdges, selfLoopEdges, upSet, downSet};
+}
+
+function normalLayout(root) {
+  const {upEdges,downEdges,selfLoopEdges,upSet,downSet} = normalBFS(root, maxDepth);
+  const allEdges = [...upEdges,...downEdges];
+  const nodeNames = [...new Set([root, ...allEdges.flatMap(e=>[e.from,e.to].filter(Boolean))])];
+
+  // BFS ranks
+  const ranks={};
+  nodeNames.forEach(n=>ranks[n]=null); ranks[root]=0;
+  const q=[root];
+  while(q.length){
+    const n=q.shift();
+    allEdges.forEach(e=>{
+      if(e.from===n&&e.to&&ranks[e.to]===null){ranks[e.to]=ranks[n]+1;q.push(e.to);}
+      if(e.to===n&&e.from&&ranks[e.from]===null){ranks[e.from]=ranks[n]-1;q.push(e.from);}
+    });
+  }
+
+  return {nodeNames, ranks, upEdges, downEdges, selfLoopEdges, upSet, downSet};
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DEV MODE — object-centric graph
+// focusNode = {schema, name, type}
+// ══════════════════════════════════════════════════════════════════════════════
+
+function TID(name)           { return 't:'+name; }
+function OID(s,n,t)          { return 'o:'+s+'|'+n+'|'+t; }
+function OIDfromObj(obj)     { return OID(obj.schema,obj.name,obj.type); }
+function parseOID(id)        { const[,r]=id.split(':');const[s,n,t]=r.split('|');return{schema:s,name:n,type:t}; }
+function parseTID(id)        { return id.slice(2); }
+function isTID(id)           { return id.startsWith('t:'); }
+function isOID(id)           { return id.startsWith('o:'); }
+
+function devBuildGraph(focus, depth) {
+  const focusId = OID(focus.schema,focus.name,focus.type);
+  const allEdges=[]; // {from, to, isSelfLoop}
+  const depIds=new Set(), impIds=new Set();
+  const visitedDep=new Set(), visitedImp=new Set();
+
+  const focusObj = repoData().find(o=>o.schema===focus.schema&&o.name===focus.name&&o.type===focus.type);
+  if (!focusObj) return {focusId, allIds:[focusId], allEdges:[], depIds, impIds, selfLoopTables:new Set()};
+
+  // Union of all sources and targets across statements (or view top-level fields).
+  // Developer mode shows the total reach of the object, not per-statement detail.
+  const focusSources = objAllSources(focusObj);
+  const focusTargets = focusObj.isSelfTarget ? [focusObj.name] : objAllTargets(focusObj);
+
+  // Self-loop tables: any table that appears in both sources and targets union
+  const selfLoopTables = new Set(focusSources.filter(s => focusTargets.includes(s)));
+
+  // Seed edges from focus object
+  focusSources.forEach(s=>{
+    const sid=TID(s);
+    allEdges.push({from:sid,to:focusId,isSelfLoop:false}); depIds.add(sid);
+  });
+  focusTargets.forEach(t=>{
+    const tid=TID(t);
+    if(!selfLoopTables.has(t)){
+      allEdges.push({from:focusId,to:tid,isSelfLoop:false}); impIds.add(tid);
+    }
+  });
+
+  // Walk upstream: from each source table, find objects that write to it, recurse.
+  // Uses objAllTargets so procedure self-loops and multi-statement targets are found.
+  // Skips the focus object — already seeded above.
+  function walkDep(tableId, d) {
+    if(d>=depth||visitedDep.has(tableId)) return; visitedDep.add(tableId);
+    const tbl=parseTID(tableId);
+    repoData().forEach(obj=>{
+      if(OIDfromObj(obj)===focusId) return;
+      const writes = obj.isSelfTarget ? [obj.name] : objAllTargets(obj);
+      if(!writes.includes(tbl)) return;
+      const oid=OIDfromObj(obj);
+      const srcs=objAllSources(obj);
+      srcs.forEach(s=>{const sid=TID(s);allEdges.push({from:sid,to:oid,isSelfLoop:false});depIds.add(sid);walkDep(sid,d+1);});
+      allEdges.push({from:oid,to:tableId,isSelfLoop:false}); depIds.add(oid);
+    });
+  }
+
+  // Walk downstream: from each target table, find objects that read from it, recurse.
+  // Uses objAllSources so procedures with multiple source statements are found.
+  // Skips the focus object — already seeded above.
+  function walkImp(tableId, d) {
+    if(d>=depth||visitedImp.has(tableId)) return; visitedImp.add(tableId);
+    const tbl=parseTID(tableId);
+    repoData().forEach(obj=>{
+      if(OIDfromObj(obj)===focusId) return;
+      if(!objAllSources(obj).includes(tbl)) return;
+      const oid=OIDfromObj(obj);
+      const targets=obj.isSelfTarget?[obj.name]:objAllTargets(obj);
+      allEdges.push({from:tableId,to:oid,isSelfLoop:false}); impIds.add(oid);
+      targets.forEach(t=>{const tid=TID(t);allEdges.push({from:oid,to:tid,isSelfLoop:false});impIds.add(tid);walkImp(tid,d+1);});
+    });
+  }
+
+  focusSources.forEach(s=>walkDep(TID(s),1));
+  focusTargets.filter(t=>!selfLoopTables.has(t)).forEach(t=>walkImp(TID(t),1));
+
+  // Deduplicate edges — multiple walk paths can produce the same {from→to} pair
+  const edgeKeys = new Set();
+  const uniqueEdges = allEdges.filter(e=>{
+    const k=e.from+'→'+e.to;
+    if(edgeKeys.has(k)) return false;
+    edgeKeys.add(k); return true;
+  });
+
+  const allIds=[...new Set([focusId,...uniqueEdges.flatMap(e=>[e.from,e.to])])];
+  return {focusId,allIds,allEdges:uniqueEdges,depIds,impIds,selfLoopTables};
+}
+
+function devLayout(focus, depth) {
+  const g=devBuildGraph(focus,depth);
+  const {focusId,allIds,allEdges}=g;
+
+  const ranks={};allIds.forEach(id=>ranks[id]=null);ranks[focusId]=0;
+  const q=[focusId];
+  while(q.length){
+    const id=q.shift();
+    allEdges.forEach(e=>{
+      if(e.from===id&&ranks[e.to]===null){ranks[e.to]=ranks[id]+1;q.push(e.to);}
+      if(e.to===id&&ranks[e.from]===null){ranks[e.from]=ranks[id]-1;q.push(e.from);}
+    });
+  }
+  return {...g,ranks};
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CARD BUILDERS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function objBadgeHtml(type,schema,name){
+  return `<div class="nc-obj"><span class="nc-obj-badge ${type}">${type==='procedure'?'proc':'view'}</span><div class="nc-obj-text"><div class="nc-obj-schema">${schema}</div><div class="nc-obj-name">${name}</div></div></div>`;
+}
+function tableBadgeHtml(name){
+  return `<div class="nc-obj"><span class="nc-obj-badge table">tbl</span><div class="nc-obj-text"><div class="nc-obj-name">${name}</div></div></div>`;
+}
+
+function buildNormalCard(name, isFocus, isUp, isDown, isSelfLoop) {
+  const isBoth = isUp && isDown;
+  const card = document.createElement('div');
+  let cls='node-card';
+  if(isFocus)     cls+=' is-focus';
+  else if(isSelfLoop) cls+=' is-selfloop is-both';
+  else if(isBoth) cls+=' is-both';
+  else if(isUp)   cls+=' is-upstream';
+  else if(isDown) cls+=' is-downstream';
+  card.className=cls;
+  card.style.width=NODE_W_NORMAL+'px';
+
+  let dirHtml='';
+  if(isFocus)           dirHtml=`<span class="nc-dir-badge focus">focus</span>`;
+  else if(isSelfLoop)   dirHtml=`<span class="nc-dir-badge selfloop">↻ self-loop</span>`;
+  else if(isBoth)       dirHtml=`<span class="nc-dir-badge both">↑↓ both</span>`;
+  else if(isUp)         dirHtml=`<span class="nc-dir-badge upstream">↑ upstream</span>`;
+  else                  dirHtml=`<span class="nc-dir-badge downstream">↓ downstream</span>`;
+
+  const viewIcon = isViewNode(name)?`<span class="nc-dir-badge dev-view" style="margin-left:auto">view</span>`:'';
+
+  // Objects that read from and write to this node
+  const readers = objectsReadingFrom(name);
+  const writers = objectsWritingTo(name);
+  const allObjs = [...new Set([...readers,...writers].map(o=>o.schema+'|'+o.name+'|'+o.type))].map(k=>{const[s,n,t]=k.split('|');return{schema:s,name:n,type:t};});
+  const MAX=5;
+  const shown=allObjs.slice(0,MAX);
+  const extra=allObjs.length-MAX;
+  const objsHtml=allObjs.length===0
+    ?`<div class="nc-empty-row">No views or procedures</div>`
+    :shown.map(o=>objBadgeHtml(o.type,o.schema,o.name)).join('')+(extra>0?`<div class="nc-obj-more">+${extra} more</div>`:'');
+
+  card.innerHTML=`
+    <div class="nc-header">
+      <div class="nc-dir-row">${dirHtml}${viewIcon}</div>
+      <div class="nc-name">${name}</div>
+    </div>
+    <div class="nc-divider"></div>
+    <div class="nc-section-label">Used by / Uses</div>
+    <div class="nc-objects">${objsHtml}</div>`;
+  return card;
+}
+
+function buildDevObjCard(nodeId, isFocus, depIds, impIds) {
+  const obj=parseOID(nodeId);
+  const isDepOnly  = depIds.has(nodeId)&&!impIds.has(nodeId);
+  const isImpOnly  = impIds.has(nodeId)&&!depIds.has(nodeId);
+  const typeBadge  = obj.type==='procedure'?'dev-proc':'dev-view';
+  const typeLabel  = obj.type==='procedure'?'procedure':'view';
+
+  const card=document.createElement('div');
+  card.className=isFocus?'node-card dev-focus-card':`node-card dev-obj-card ${isDepOnly?'is-upstream':'is-downstream'}`;
+  card.style.width=(isFocus?NODE_W_DEV_OBJ+10:NODE_W_DEV_OBJ)+'px';
+
+  let dirPill=isFocus?`<span class="nc-dir-badge focus">focus</span>`
+    :isDepOnly?`<span class="nc-dir-badge upstream">↑ dep</span>`
+    :`<span class="nc-dir-badge downstream">↓ impact</span>`;
+
+  // Reads from and writes to — use union helpers so multi-statement procedures
+  // show the full set of tables they touch across all their statements.
+  const fullObj=repoData().find(o=>o.schema===obj.schema&&o.name===obj.name&&o.type===obj.type);
+  const readFrom = fullObj ? objAllSources(fullObj) : [];
+  const writeTo  = fullObj ? (fullObj.isSelfTarget ? [fullObj.name] : objAllTargets(fullObj)) : [];
+  const selfLoops = readFrom.filter(s=>writeTo.includes(s));
+
+  const readHtml=readFrom.length===0
+    ?`<div class="nc-empty-row">— static data / no source</div>`
+    :readFrom.map(t=>tableBadgeHtml(t)).join('');
+
+  let writeHtml;
+  if(writeTo.length===0){
+    writeHtml=`<div class="nc-empty-row">— statement only (no output)</div>`;
+  } else if(fullObj&&fullObj.isSelfTarget){
+    writeHtml=`<div class="nc-empty-row">— this view IS the output</div>`;
+  } else {
+    writeHtml=writeTo.map(t=>{
+      const sl=selfLoops.includes(t);
+      return `<div class="nc-obj"><span class="nc-obj-badge table">${sl?'↻ tbl':'tbl'}</span><div class="nc-obj-text"><div class="nc-obj-name">${t}${sl?' <span style="color:var(--accent);font-size:9px">(self-loop)</span>':''}</div></div></div>`;
+    }).join('');
+  }
+
+  card.innerHTML=`
+    <div class="nc-header">
+      <div class="nc-dir-row">
+        <span class="nc-dir-badge ${typeBadge}">${typeLabel}</span>
+        <span style="margin-left:auto">${dirPill}</span>
+      </div>
+      <div class="nc-obj-schema-small">${obj.schema}</div>
+      <div class="nc-name">${obj.name}</div>
+    </div>
+    <div class="nc-divider"></div>
+    <div class="nc-section-label">Reads from</div>
+    <div>${readHtml}</div>
+    <div class="nc-divider"></div>
+    <div class="nc-section-label">Writes to</div>
+    <div>${writeHtml}</div>`;
+  return card;
+}
+
+function buildDevTableCard(nodeId, depIds, impIds) {
+  const tbl=parseTID(nodeId);
+  const isDepOnly  = depIds.has(nodeId)&&!impIds.has(nodeId);
+  const isImpOnly  = impIds.has(nodeId)&&!depIds.has(nodeId);
+  const isBoth     = depIds.has(nodeId)&&impIds.has(nodeId);
+  const card=document.createElement('div');
+  let cls='node-card dev-table-card '+(isDepOnly?'is-upstream':isImpOnly?'is-downstream':'is-both');
+  card.className=cls;
+  card.style.width=NODE_W_DEV_TABLE+'px';
+
+  const dirPill=isDepOnly?`<span class="nc-dir-badge upstream">↑ dep</span>`
+    :isImpOnly?`<span class="nc-dir-badge downstream">↓ impact</span>`
+    :`<span class="nc-dir-badge both">↑↓ both</span>`;
+
+  card.innerHTML=`
+    <div class="nc-header">
+      <div class="nc-dir-row">
+        <span class="nc-dir-badge dev-table">table</span>
+        <span style="margin-left:auto">${dirPill}</span>
+      </div>
+      <div class="nc-name">${tbl}</div>
+    </div>`;
+  return card;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CANVAS EDGE DRAWING
+// All positions are graph-space (no pan baked in).
+// cx/cy = canvas.width/2 + panX and canvas.height/2 + panY applied at draw time.
+// ══════════════════════════════════════════════════════════════════════════════
+function drawEdgeCanvas(ctx, fromPos, toPos, fromW, fromH, toH, color, alpha, dashed) {
+  const sx = fromPos.x + fromW;
+  const sy = fromPos.y + fromH/2;
+  const ex = toPos.x;
+  const ey = toPos.y + toH/2;
+  const cpX=(sx+ex)/2;
+
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.strokeStyle=color;
+  ctx.lineWidth=1.5;
+  if(dashed) ctx.setLineDash([5,4]);
+  ctx.beginPath();
+  ctx.moveTo(sx,sy);
+  ctx.bezierCurveTo(cpX,sy,cpX,ey,ex,ey);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrowhead
+  const ang=Math.atan2(ey-(sy+ey)/2, ex-cpX);
+  const hl=7;
+  ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(ex,ey);ctx.lineTo(ex-hl*Math.cos(ang-Math.PI/6),ey-hl*Math.sin(ang-Math.PI/6));
+  ctx.moveTo(ex,ey);ctx.lineTo(ex-hl*Math.cos(ang+Math.PI/6),ey-hl*Math.sin(ang+Math.PI/6));
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Self-loop arc drawn above the node card
+function drawSelfLoop(ctx, pos, w, h, color) {
+  ctx.save();
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.globalAlpha=0.65;
+  ctx.setLineDash([4,3]);
+  const cx2=pos.x+w/2, top=pos.y;
+  ctx.beginPath();
+  ctx.arc(cx2, top-18, 18, 0.1*Math.PI, 0.9*Math.PI, true);
+  ctx.stroke();
+  // arrowhead at start of arc
+  ctx.setLineDash([]);
+  const ang=-0.25*Math.PI, hl=7;
+  const ax=cx2+18*Math.cos(0.1*Math.PI), ay=top-18+18*Math.sin(0.1*Math.PI);
+  ctx.beginPath();
+  ctx.moveTo(ax,ay);ctx.lineTo(ax-hl*Math.cos(ang-Math.PI/6),ay-hl*Math.sin(ang-Math.PI/6));
+  ctx.moveTo(ax,ay);ctx.lineTo(ax-hl*Math.cos(ang+Math.PI/6),ay-hl*Math.sin(ang+Math.PI/6));
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════════════════════
+function render() {
+  if(animFrame) cancelAnimationFrame(animFrame);
+  animFrame=requestAnimationFrame(_doRender);
+}
+
+function _doRender() {
+  const area=document.getElementById('graphArea');
+  const canvas=document.getElementById('graphCanvas');
+  const ctx=canvas.getContext('2d');
+  const nl=document.getElementById('nodesLayer');
+
+  canvas.width=area.clientWidth;
+  canvas.height=area.clientHeight;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  nl.innerHTML='';
+
+  const empty=document.getElementById('emptyState');
+  const crumb=document.getElementById('focusCrumb');
+  const devB =document.getElementById('devBanner');
+
+  if(!focusNode){ empty.style.display='flex';crumb.style.display='none';devB.style.display='none';drawMinimap(null);return; }
+  empty.style.display='none';
+
+  // canvas origin in screen coords
+  const ox=canvas.width/2+panX;
+  const oy=canvas.height/2+panY;
+
+  if(mode==='normal'){
+    crumb.style.display='block'; devB.style.display='none';
+    document.getElementById('focusCrumbText').textContent=focusNode;
+
+    const layout=normalLayout(focusNode);
+    const {nodeNames,ranks,upEdges,downEdges,selfLoopEdges,upSet,downSet}=layout;
+
+    // Build cards without positioning (for measurement)
+    const cardMap={};
+    nodeNames.forEach(name=>{
+      const isFocus=name===focusNode;
+      const isUp=!isFocus&&upSet.has(name);
+      const isDown=!isFocus&&downSet.has(name);
+      const isSL=selfLoopEdges.some(e=>e.from===name&&e.to===name);
+      cardMap[name]=buildNormalCard(name,isFocus,isUp,isDown,isSL);
+    });
+
+    // Measure real heights
+    const heights=measureCards(cardMap);
+
+    // Compute positions using real heights
+    const positions=sweepLayout(nodeNames,ranks,heights);
+
+    // Draw edges on canvas (graph-space coords → screen coords via ox/oy)
+    function edge(fromName, toName, color, alpha, dashed) {
+      const s=positions[fromName], t=positions[toName];
+      if(!s||!t) return;
+      const sp={x:s.x+ox, y:s.y+oy};
+      const tp={x:t.x+ox, y:t.y+oy};
+      drawEdgeCanvas(ctx,sp,tp,NODE_W_NORMAL,heights[fromName]||80,heights[toName]||80,color,alpha,dashed);
+    }
+
+    upEdges.forEach(e   =>{ if(e.from&&e.to&&e.from!==e.to) edge(e.from,e.to,'#4d9e75',0.6,false); });
+    downEdges.forEach(e =>{ if(e.from&&e.to&&e.from!==e.to) edge(e.from,e.to,'#5a8fc4',0.6,false); });
+    selfLoopEdges.forEach(e=>{ const p=positions[e.from]; if(p) drawSelfLoop(ctx,{x:p.x+ox,y:p.y+oy},NODE_W_NORMAL,heights[e.from]||80,'#d4a96a'); });
+
+    // Orphan source-only edges (to===null): draw a small dashed line from node
+    [...upEdges,...downEdges].forEach(e=>{
+      if(e.from===null&&e.to){
+        const tp=positions[e.to]; if(!tp) return;
+        ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle='#888'; ctx.globalAlpha=0.4; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(tp.x+ox-40, tp.y+oy+(heights[e.to]||80)/2); ctx.lineTo(tp.x+ox, tp.y+oy+(heights[e.to]||80)/2); ctx.stroke(); ctx.restore();
+      }
+      if(e.to===null&&e.from){
+        const fp=positions[e.from]; if(!fp) return;
+        ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle='#888'; ctx.globalAlpha=0.4; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(fp.x+NODE_W_NORMAL+ox, fp.y+oy+(heights[e.from]||80)/2); ctx.lineTo(fp.x+NODE_W_NORMAL+40+ox, fp.y+oy+(heights[e.from]||80)/2); ctx.stroke(); ctx.restore();
+      }
+    });
+
+    // Place cards
+    nodeNames.forEach(name=>{
+      const p=positions[name]; if(!p) return;
+      const card=cardMap[name];
+      card.style.left=(p.x+ox)+'px';
+      card.style.top =(p.y+oy)+'px';
+      card.addEventListener('click',()=>{
+        if(name!==focusNode){prevFocus.push(focusNode);syncBackBtn();}
+        focusNode=name;panX=0;panY=0;updateSidebarActive();render();
+      });
+      nl.appendChild(card);
+    });
+
+    document.getElementById('leg-selfloop-row').style.display=selfLoopEdges.length?'flex':'none';
+    drawMinimap(positions, heights, ox, oy, NODE_W_NORMAL, null, focusNode);
+
+  } else {
+    // ── DEV MODE ──
+    crumb.style.display='none'; devB.style.display='flex';
+    document.getElementById('devBannerText').textContent=`${focusNode.schema}.${focusNode.name}`;
+
+    const layout=devLayout(focusNode,maxDepth);
+    const {focusId,allIds,allEdges,depIds,impIds,ranks,selfLoopTables}=layout;
+
+    // Build cards
+    const cardMap={};
+    allIds.forEach(id=>{
+      if(isOID(id)) cardMap[id]=buildDevObjCard(id,id===focusId,depIds,impIds);
+      else          cardMap[id]=buildDevTableCard(id,depIds,impIds);
+    });
+
+    const heights=measureCards(cardMap);
+
+    // Adjust x stride for dev mode (different card widths)
+    const devRankOf={};
+    allIds.forEach(id=>devRankOf[id]=ranks[id]??0);
+    // Custom x positioning since card widths vary
+    const cols={};
+    allIds.forEach(id=>{const r=devRankOf[id];if(!cols[r])cols[r]=[];cols[r].push(id);});
+    const positions={};
+    const COL_W=NODE_W_DEV_OBJ+GAP_X;
+    Object.keys(cols).map(Number).sort((a,b)=>a-b).forEach(r=>{
+      const ns=cols[r];
+      const totalH=ns.reduce((s,id)=>s+(heights[id]||80)+GAP_Y,-GAP_Y);
+      let y=-totalH/2;
+      ns.forEach(id=>{positions[id]={x:r*COL_W,y};y+=(heights[id]||80)+GAP_Y;});
+      for(let i=1;i<ns.length;i++){
+        const prev=ns[i-1],cur=ns[i];
+        const minY=positions[prev].y+(heights[prev]||80)+GAP_Y;
+        if(positions[cur].y<minY) positions[cur].y=minY;
+      }
+    });
+
+    // Card widths by id
+    function cardW(id){ return isOID(id)?(id===focusId?NODE_W_DEV_OBJ+10:NODE_W_DEV_OBJ):NODE_W_DEV_TABLE; }
+
+    // Draw edges
+    allEdges.forEach(e=>{
+      const s=positions[e.from], t=positions[e.to]; if(!s||!t) return;
+      const color=depIds.has(e.from)?'#4d9e75':'#5a8fc4';
+      const sp={x:s.x+ox,y:s.y+oy}, tp={x:t.x+ox,y:t.y+oy};
+      drawEdgeCanvas(ctx,sp,tp,cardW(e.from),heights[e.from]||80,heights[e.to]||80,color,0.6,false);
+    });
+
+    // Self-loop arcs for tables that are both source and target of focus
+    selfLoopTables.forEach(tbl=>{
+      const tid=TID(tbl);
+      const p=positions[tid]; if(!p) return;
+      drawSelfLoop(ctx,{x:p.x+ox,y:p.y+oy},NODE_W_DEV_TABLE,heights[tid]||80,'#d4a96a');
+    });
+
+    // Place cards
+    allIds.forEach(id=>{
+      const p=positions[id]; if(!p) return;
+      const card=cardMap[id];
+      card.style.left=(p.x+ox)+'px';
+      card.style.top =(p.y+oy)+'px';
+      // Clicking a table switches to normal mode focused on that table
+      if(isTID(id)){
+        card.addEventListener('click',()=>{
+          const tbl=parseTID(id);
+          prevFocus.push(focusNode);
+          setMode('normal');
+          focusNode=tbl; panX=0;panY=0; syncBackBtn(); updateSidebarActive(); render();
+        });
+      } else if(!( id===focusId )){
+        card.addEventListener('click',()=>{
+          const obj=parseOID(id);
+          prevFocus.push(focusNode);
+          focusNode={schema:obj.schema,name:obj.name,type:obj.type};
+          panX=0;panY=0; syncBackBtn(); render();
+        });
+      }
+      nl.appendChild(card);
+    });
+
+    document.getElementById('leg-selfloop-row').style.display=selfLoopTables.size?'flex':'none';
+    drawMinimap(positions,heights,ox,oy,NODE_W_DEV_OBJ,focusId,null);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MINIMAP
+// ══════════════════════════════════════════════════════════════════════════════
+function drawMinimap(positions, heights, ox, oy, defaultW, focusId, focusName) {
+  const mcan=document.getElementById('minimapCanvas');
+  const mctx=mcan.getContext('2d');
+  const finder=document.getElementById('minimapFinder');
+  const area=document.getElementById('graphArea');
+  mctx.clearRect(0,0,170,110);
+  if(!positions){finder.style.display='none';return;}
+  finder.style.display='block';
+
+  const entries=Object.entries(positions);
+  if(!entries.length) return;
+
+  const PAD=40;
+  const allH=heights||{};
+  const minX=Math.min(...entries.map(([,p])=>p.x))-PAD;
+  const maxX=Math.max(...entries.map(([id,p])=>p.x+(defaultW||240)))+PAD;
+  const minY=Math.min(...entries.map(([,p])=>p.y))-PAD;
+  const maxY=Math.max(...entries.map(([id,p])=>p.y+(allH[id]||80)))+PAD;
+  const rangeX=maxX-minX||1, rangeY=maxY-minY||1;
+  const scale=Math.min(170/rangeX,110/rangeY);
+  const offX=(170-rangeX*scale)/2;
+  const offY=(110-rangeY*scale)/2;
+
+  entries.forEach(([id,p])=>{
+    const h=allH[id]||80;
+    const isFoc = (focusId&&id===focusId)||(focusName&&id===focusName);
+    const isObj = isOID&&isOID(id);
+    mctx.fillStyle=isFoc?'rgba(212,169,106,0.75)':isObj?'rgba(90,143,196,0.3)':'rgba(255,255,255,0.12)';
+    if(isFoc){mctx.shadowColor='rgba(212,169,106,0.5)';mctx.shadowBlur=4;}
+    mctx.fillRect(offX+(p.x-ox-minX+ox)*scale, offY+(p.y-oy-minY+oy)*scale, (defaultW||240)*scale, h*scale);
+    mctx.shadowBlur=0;
+  });
+
+  // Viewfinder
+  const vpW=area.clientWidth,vpH=area.clientHeight;
+  const vX=offX+(vpW/2-ox-minX+ox)*scale; // simplify: viewfinder based on pan
+  const vY=offY+(vpH/2-oy-minY+oy)*scale;
+  const vW=vpW*scale,vH=vpH*scale;
+  finder.style.left=Math.max(0,Math.min(vX,170-vW))+'px';
+  finder.style.top =Math.max(0,Math.min(vY,110-vH))+'px';
+  finder.style.width=Math.min(vW,170)+'px';
+  finder.style.height=Math.min(vH,110)+'px';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REPO SWITCHER
+// ══════════════════════════════════════════════════════════════════════════════
+function initials(name){ return name.split(/[_\-\s]/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase(); }
+
+function renderRepoPill() {
+  const meta=repoMeta();
+  document.getElementById('repoPillIcon').style.cssText=`background:${meta.dim};color:${meta.color}`;
+  document.getElementById('repoPillIcon').textContent=initials(meta.label);
+  document.getElementById('repoPillName').textContent=meta.label;
+  document.getElementById('repoPillSub').textContent=`${meta.type} · ${meta.host}`;
+}
+
+function renderSwitcherList() {
+  const list=document.getElementById('switcherList');
+  list.innerHTML='';
+  REPOS.forEach(r=>{
+    const row=document.createElement('div');
+    row.className='switcher-row'+(r.id===activeRepo?' is-active':'');
+    row.innerHTML=`
+      <div class="switcher-row-icon" style="background:${r.dim};color:${r.color}">${initials(r.label)}</div>
+      <div class="switcher-row-meta">
+        <div class="switcher-row-name">${r.label}</div>
+        <div class="switcher-row-sub">${r.type} · ${r.host}</div>
+      </div>
+      ${r.id===activeRepo?'<div class="active-dot"></div>':''}`;
+    row.addEventListener('click',()=>{ switchRepo(r.id); });
+    list.appendChild(row);
+  });
+}
+
+function toggleSwitcher() {
+  switcherOpen=!switcherOpen;
+  document.getElementById('repoSwitcher').classList.toggle('open',switcherOpen);
+  document.getElementById('repoPill').classList.toggle('open',switcherOpen);
+  if(switcherOpen) renderSwitcherList();
+}
+function closeSwitcher() {
+  switcherOpen=false;
+  document.getElementById('repoSwitcher').classList.remove('open');
+  document.getElementById('repoPill').classList.remove('open');
+}
+
+async function switchRepo(repoId) {
+  if(repoId===activeRepo){closeSwitcher();return;}
+  activeRepo=repoId; focusNode=null; prevFocus=[]; panX=0;panY=0;
+  closeSwitcher(); renderRepoPill(); syncBackBtn(); renderSidebar(''); render();
+
+  const btn=document.getElementById('refreshBtn');
+  const status=document.getElementById('footerStatus');
+  btn.classList.add('spinning');
+  status.className='footer-status loading';
+  status.textContent='Loading…';
+
+  try {
+    await loadLineage(activeRepo);
+    btn.classList.remove('spinning');
+    status.className='footer-status ok';
+    status.textContent='✓ Loaded';
+    setTimeout(()=>{status.textContent='';status.className='footer-status';},2500);
+    renderRepoPill(); // refresh version shown in pill
+    renderSidebar('');
+    render();
+  } catch(err) {
+    btn.classList.remove('spinning');
+    status.className='footer-status';
+    status.style.color='var(--danger)';
+    status.textContent=`Error: ${err.message}`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REFRESH — calls GetLineage on the server for the active repo
+// ══════════════════════════════════════════════════════════════════════════════
+async function doRefresh() {
+  if (!activeRepo) return;
+  const btn=document.getElementById('refreshBtn');
+  const status=document.getElementById('footerStatus');
+  btn.classList.add('spinning');
+  btn.disabled=true;
+  status.className='footer-status loading';
+  status.textContent='Syncing…';
+
+  try {
+    const res = await loadLineage(activeRepo);
+
+    btn.classList.remove('spinning');
+    btn.disabled=false;
+
+    const changed = res.status === 'LINEAGE_STATUS_OK';
+    const noChange= res.status === 'LINEAGE_STATUS_NO_CHANGES';
+
+    status.className='footer-status ok';
+    status.textContent = noChange ? '✓ Already up to date' : '✓ Synced';
+    setTimeout(()=>{status.textContent='';status.className='footer-status';},2500);
+
+    renderRepoPill(); // repoVersion may have changed
+    renderSidebar('');
+    render();
+  } catch(err) {
+    btn.classList.remove('spinning');
+    btn.disabled=false;
+    status.className='footer-status';
+    status.style.color='var(--danger)';
+    status.textContent=`Error: ${err.message}`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════════════════════════════════════════
+function renderSidebar(query) {
+  const q=(query||'').toLowerCase().trim();
+  const list=document.getElementById('resultsList');
+  const label=document.getElementById('resultsLabel');
+  list.innerHTML='';
+
+  if(mode==='normal'){
+    label.textContent=q?`Tables · "${query}"`:'All tables';
+    const nodes=allNodeNames().filter(n=>!q||n.toLowerCase().includes(q));
+    if(!nodes.length){list.innerHTML=`<div style="padding:20px;font-size:12px;color:var(--text-muted);text-align:center">No results</div>`;return;}
+    nodes.forEach(n=>{
+      const div=document.createElement('div');
+      const isView=isViewNode(n);
+      div.className='result-item'+(n===focusNode?' active':'');
+      div.innerHTML=`
+        <div class="ri-icon ${isView?'view':'table'}">${isView?'V':'T'}</div>
+        <div class="ri-meta">
+          <div class="ri-name">${n}</div>
+          <div class="ri-sub">${isView?'view':'table'}</div>
+        </div>`;
+      div.addEventListener('click',()=>{
+        if(n!==focusNode){prevFocus.push(focusNode);syncBackBtn();}
+        focusNode=n;panX=0;panY=0;updateSidebarActive();render();
+      });
+      list.appendChild(div);
+    });
+  } else {
+    label.textContent=q?`Objects · "${query}"`:'Views & procedures';
+    const seen=new Set();
+    const objs=repoData().filter(o=>{
+      const k=o.schema+'|'+o.name+'|'+o.type;
+      if(seen.has(k)) return false; seen.add(k);
+      return !q||o.name.toLowerCase().includes(q)||o.schema.toLowerCase().includes(q)||o.type.includes(q);
+    });
+    if(!objs.length){list.innerHTML=`<div style="padding:20px;font-size:12px;color:var(--text-muted);text-align:center">No results</div>`;return;}
+    objs.forEach(o=>{
+      const div=document.createElement('div');
+      const isActive=focusNode&&focusNode.schema===o.schema&&focusNode.name===o.name&&focusNode.type===o.type;
+      div.className='result-item'+(isActive?' active':'');
+      div.innerHTML=`
+        <div class="ri-icon ${o.type}">${o.type==='view'?'V':'P'}</div>
+        <div class="ri-meta">
+          <div class="ri-name">${o.name}</div>
+          <div class="ri-sub">${o.type} · ${o.schema}</div>
+        </div>`;
+      div.addEventListener('click',()=>{
+        if(!isActive) prevFocus.push(focusNode);
+        focusNode={schema:o.schema,name:o.name,type:o.type};
+        panX=0;panY=0;syncBackBtn();updateSidebarActive();render();
+      });
+      list.appendChild(div);
+    });
+  }
+}
+
+function updateSidebarActive() {
+  document.querySelectorAll('.result-item').forEach(el=>{
+    const nameEl=el.querySelector('.ri-name');
+    let active=false;
+    if(mode==='normal'){
+      active=nameEl&&nameEl.textContent===focusNode;
+    } else {
+      active=focusNode&&nameEl&&nameEl.textContent===focusNode.name;
+    }
+    el.classList.toggle('active',active);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODE / DEPTH / NAVIGATION
+// ══════════════════════════════════════════════════════════════════════════════
+function setMode(m) {
+  mode=m; focusNode=null; prevFocus=[]; panX=0;panY=0;
+  document.getElementById('modeNormalBtn').classList.toggle('active',m==='normal');
+  document.getElementById('modeDevBtn').classList.toggle('active',m==='dev');
+  document.getElementById('emptyTitle').textContent=m==='normal'?'Select a table to explore':'Select a view or procedure';
+  document.getElementById('emptySub').textContent  =m==='normal'?'Shows upstream sources and downstream targets':'Shows dependencies and full impact chain';
+  document.getElementById('searchInput').placeholder=m==='normal'?'Search tables…':'Search views & procedures…';
+  document.getElementById('leg-focus').textContent =m==='normal'?'Selected table':'Selected object';
+  document.getElementById('leg-up').textContent    =m==='normal'?'Upstream source':'Dependency (reads from)';
+  document.getElementById('leg-down').textContent  =m==='normal'?'Downstream target':'Impact (writes to)';
+  syncBackBtn();
+  document.getElementById('searchInput').value='';
+  renderSidebar('');
+  render();
+}
+
+function setDepth(d) {
+  maxDepth=d;
+  ['btn-d1','btn-d3','btn-dall'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  const map={1:'btn-d1',3:'btn-d3',99:'btn-dall'};
+  if(map[d]) document.getElementById(map[d]).classList.add('active');
+  render();
+}
+
+function goBack() {
+  if(!prevFocus.length) return;
+  const prev=prevFocus.pop();
+  if(prev&&typeof prev==='object'&&prev.schema){
+    mode='dev';
+    document.getElementById('modeNormalBtn').classList.remove('active');
+    document.getElementById('modeDevBtn').classList.add('active');
+    focusNode=prev;
+  } else {
+    mode='normal';
+    document.getElementById('modeNormalBtn').classList.add('active');
+    document.getElementById('modeDevBtn').classList.remove('active');
+    focusNode=prev;
+  }
+  panX=0;panY=0;syncBackBtn();updateSidebarActive();render();
+}
+
+function syncBackBtn() {
+  const btn=document.getElementById('backBtn');
+  btn.style.display=prevFocus.some(f=>f!==null)?'flex':'none';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EVENTS
+// ══════════════════════════════════════════════════════════════════════════════
+const graphArea=document.getElementById('graphArea');
+
+graphArea.addEventListener('mousedown',e=>{
+  const tag=e.target.tagName.toLowerCase();
+  if(tag==='canvas'||e.target===graphArea||e.target.id==='nodesLayer'){
+    isPanning=true;panStartX=e.clientX-panX;panStartY=e.clientY-panY;
+    graphArea.classList.add('panning');
+  }
+});
+
+window.addEventListener('mousemove',e=>{
+  if(isPanning){panX=e.clientX-panStartX;panY=e.clientY-panStartY;render();}
+  if(isResizing){
+    const lp=document.getElementById('leftPanel');
+    const newW=Math.max(200,Math.min(resStartW+e.clientX-resStartX,480));
+    lp.style.width=newW+'px';lp.style.minWidth=newW+'px';render();
+  }
+});
+
+window.addEventListener('mouseup',()=>{
+  isPanning=false;isResizing=false;
+  graphArea.classList.remove('panning');
+  document.getElementById('panelResize').classList.remove('dragging');
+  document.body.style.cursor='';document.body.style.userSelect='';
+});
+
+graphArea.addEventListener('wheel',e=>{
+  e.preventDefault();panX-=e.deltaX;panY-=e.deltaY;render();
+},{passive:false});
+
+document.getElementById('panelResize').addEventListener('mousedown',e=>{
+  isResizing=true;resStartX=e.clientX;
+  resStartW=document.getElementById('leftPanel').offsetWidth;
+  document.getElementById('panelResize').classList.add('dragging');
+  document.body.style.cursor='ew-resize';document.body.style.userSelect='none';
+});
+
+document.getElementById('searchInput').addEventListener('input',e=>renderSidebar(e.target.value));
+
+document.addEventListener('click',e=>{
+  if(switcherOpen&&!e.target.closest('#repoSwitcher')&&!e.target.closest('#repoPill'))
+    closeSwitcher();
+});
+
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(switcherOpen){closeSwitcher();}
+    else{panX=0;panY=0;render();}
+  }
+  if((e.key==='Backspace'||e.key==='ArrowLeft')&&!e.target.matches('input')) goBack();
+});
+
+window.addEventListener('resize',()=>render());
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BOOT
+// 1. Show loading state immediately
+// 2. Call GetRepos → populate REPOS, set activeRepo to first repo
+// 3. Call GetLineage for that repo → populate DATA
+// 4. Render everything
+// ══════════════════════════════════════════════════════════════════════════════
+async function boot() {
+  // Show loading state before any server calls
+  const status = document.getElementById('footerStatus');
+  const btn    = document.getElementById('refreshBtn');
+  status.className  = 'footer-status loading';
+  status.textContent = 'Connecting…';
+  btn.classList.add('spinning');
+  btn.disabled = true;
+
+  // Show empty graph while loading
+  render();
+
+  try {
+    // Step 1: load repo list
+    await loadRepos();
+
+    if (!REPOS.length) {
+      btn.classList.remove('spinning');
+      btn.disabled = false;
+      status.className  = 'footer-status';
+      status.style.color = 'var(--danger)';
+      status.textContent = 'No repos found on server';
+      render();
+      return;
+    }
+
+    // Step 2: activate first repo and render pill + switcher
+    activeRepo = REPOS[0].id;
+    renderRepoPill();
+    renderSwitcherList();
+
+    // Step 3: load lineage for the active repo
+    status.textContent = 'Loading lineage…';
+    await loadLineage(activeRepo);
+
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+    status.className  = 'footer-status ok';
+    status.textContent = '✓ Ready';
+    setTimeout(()=>{status.textContent='';status.className='footer-status';}, 2500);
+
+    renderSidebar('');
+    render();
+
+  } catch(err) {
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+    status.className  = 'footer-status';
+    status.style.color = 'var(--danger)';
+    status.textContent = `Connection failed: ${err.message}`;
+    // Still render the empty state so the UI is usable
+    renderSidebar('');
+    render();
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
