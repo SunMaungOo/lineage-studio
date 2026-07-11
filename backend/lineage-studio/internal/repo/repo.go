@@ -244,7 +244,7 @@ func GetObjectInfoByName(repoLocation string, repoName string, objectName string
 		objectDetail, err := GetObjectInfo(repoLocation, repoName, objectName, hash)
 
 		if err != nil {
-			return []ObjectDetail{}, nil
+			return []ObjectDetail{}, err
 		}
 
 		objectDetails[index] = objectDetail
@@ -445,19 +445,19 @@ func LoadRepo(repoRootPath string, folderName string) (Repo, error) {
 	meta, err := LoadMetadata(repoDirPath)
 
 	if err != nil {
-		return Repo{}, nil
+		return Repo{}, err
 	}
 
 	links, err := loadLinks(repoDirPath)
 
 	if err != nil {
-		return Repo{}, nil
+		return Repo{}, err
 	}
 
 	objects, err := loadObjects(repoDirPath)
 
 	if err != nil {
-		return Repo{}, nil
+		return Repo{}, err
 	}
 
 	return Repo{

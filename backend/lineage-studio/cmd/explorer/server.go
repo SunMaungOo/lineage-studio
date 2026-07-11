@@ -30,7 +30,7 @@ func (server LineageExplorerServer) getRepoSummary() ([]*lineage_explorer.RepoSu
 	folderNames, err := repo.GetFolderNames(server.RepoLocation)
 
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	for _, folderName := range folderNames {
@@ -60,7 +60,7 @@ func (server LineageExplorerServer) GetRepos(context context.Context, request *c
 	summaries, err := server.getRepoSummary()
 
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	response := lineage_explorer.GetReposResponse{

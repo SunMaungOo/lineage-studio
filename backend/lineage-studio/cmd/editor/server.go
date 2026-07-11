@@ -58,7 +58,7 @@ func (server LineageStudioServer) getRepoSummary() ([]*lineage_studio.RepoSummar
 	folderNames, err := repo.GetFolderNames(server.RepoLocation)
 
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	for _, folderName := range folderNames {
@@ -68,7 +68,7 @@ func (server LineageStudioServer) getRepoSummary() ([]*lineage_studio.RepoSummar
 		metadata, err := repo.LoadMetadata(repoDirPath)
 
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 
 		lastSyncedAt, err := git.GitHeadCommitDateTime(repoDirPath)
@@ -206,7 +206,7 @@ func (server LineageStudioServer) GetObjectHistory(context context.Context, requ
 	objectDetails, err := repo.GetObjectInfoByName(server.RepoLocation, request.Msg.RepoName, request.Msg.ObjectName)
 
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	histories := []*lineage_studio.HistoryEntry{}
