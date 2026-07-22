@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,14 +11,63 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0f0f0f;--bg-2:#161616;--bg-3:#1c1c1c;--bg-4:#222222;--bg-hover:#262626;
+  --border-rgb:255,255,255;
   --border:rgba(255,255,255,0.07);--border-md:rgba(255,255,255,0.12);--border-strong:rgba(255,255,255,0.18);
   --text-primary:#f0ede8;--text-secondary:#8a8682;--text-muted:#555250;
-  --accent:#d4a96a;--accent-dim:rgba(212,169,106,0.12);--accent-dim2:rgba(212,169,106,0.06);
-  --verified:#4d9e75;--verified-dim:rgba(77,158,117,0.12);
-  --danger:#c0534a;--info:#5a8fc4;--info-dim:rgba(90,143,196,0.10);
-  --up-color:#4d9e75;--down-color:#5a8fc4;
+  --accent:#d4a96a;--accent-rgb:212,169,106;--accent-dim:rgba(212,169,106,0.12);--accent-dim2:rgba(212,169,106,0.06);
+  --verified:#4d9e75;--verified-rgb:77,158,117;--verified-dim:rgba(77,158,117,0.12);
+  --danger:#c0534a;--danger-rgb:192,83,74;
+  --info:#5a8fc4;--info-rgb:90,143,196;--info-dim:rgba(90,143,196,0.10);
+  --up-color:#4d9e75;--up-rgb:77,158,117;
+  --down-color:#5a8fc4;--down-rgb:90,143,196;
+  /* card elevation + focus-ring language, themed as a unit below */
+  --shadow-card:0 4px 12px rgba(0,0,0,0.3);
+  --shadow-card-hover:0 6px 20px rgba(0,0,0,0.4);
+  --shadow-dev-focus:0 8px 24px rgba(0,0,0,0.5);
+  --ring-alpha:0.1;
+  /* minimap dot legibility, tuned per theme */
+  --minimap-base-alpha:0.12;--minimap-obj-alpha:0.3;
+  /* per-repo colour coding, read by JS via getComputedStyle so it follows the theme */
+  --repo-1:#d4a96a;--repo-1-dim:rgba(212,169,106,0.15);
+  --repo-2:#7a9ec4;--repo-2-dim:rgba(122,158,196,0.15);
+  --repo-3:#8ecfa8;--repo-3-dim:rgba(142,207,168,0.15);
+  --repo-4:#c47a7a;--repo-4-dim:rgba(196,122,122,0.15);
+  --repo-5:#a48eca;--repo-5-dim:rgba(164,142,202,0.15);
   --radius:8px;--radius-sm:5px;
   --font:'Instrument Sans',sans-serif;--mono:'Geist Mono',monospace;
+}
+
+/* ── LIGHT THEME ──────────────────────────────────────────────────────────────
+   Same warm-neutral personality as the dark theme (off-black text rather than
+   pure black, warm greige rather than stark white, the same gold/green/blue/red
+   hues) just re-balanced so the largest surface on screen — the canvas — stays
+   a soft, muted greige instead of a glaring white. Elevation still reads as
+   "lighter = closer to the viewer", the same logic as the dark theme, just
+   climbing from greige toward white instead of from near-black toward grey.
+   All accent/status colours are deepened versions of the dark-theme hues
+   (same hue + saturation, lower lightness) so they hold ~4.6:1+ contrast on
+   these backgrounds instead of just being inverted as-is. ── */
+[data-theme="light"]{
+  --bg:#EDEAE3;--bg-2:#F6F4EF;--bg-3:#FBFAF7;--bg-4:#FFFFFF;--bg-hover:#F2E9D8;
+  --border-rgb:46,42,36;
+  --border:rgba(46,42,36,0.08);--border-md:rgba(46,42,36,0.14);--border-strong:rgba(46,42,36,0.24);
+  --text-primary:#2E2A24;--text-secondary:#6B6259;--text-muted:#7C766B;
+  --accent:#886127;--accent-rgb:136,97,39;--accent-dim:rgba(136,97,39,0.12);--accent-dim2:rgba(136,97,39,0.06);
+  --verified:#377154;--verified-rgb:55,113,84;--verified-dim:rgba(55,113,84,0.12);
+  --danger:#AF453D;--danger-rgb:175,69,61;
+  --info:#396B9E;--info-rgb:57,107,158;--info-dim:rgba(57,107,158,0.10);
+  --up-color:#377154;--up-rgb:55,113,84;
+  --down-color:#396B9E;--down-rgb:57,107,158;
+  --shadow-card:0 2px 10px rgba(46,42,36,0.07);
+  --shadow-card-hover:0 6px 18px rgba(46,42,36,0.11);
+  --shadow-dev-focus:0 8px 22px rgba(46,42,36,0.13);
+  --ring-alpha:0.18;
+  --minimap-base-alpha:0.32;--minimap-obj-alpha:0.5;
+  --repo-1:#886127;--repo-1-dim:rgba(136,97,39,0.15);
+  --repo-2:#426B96;--repo-2-dim:rgba(66,107,150,0.15);
+  --repo-3:#31744C;--repo-3-dim:rgba(49,116,76,0.15);
+  --repo-4:#A74A4A;--repo-4-dim:rgba(167,74,74,0.15);
+  --repo-5:#7756B0;--repo-5-dim:rgba(119,86,176,0.15);
 }
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-primary);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
 .app{display:flex;height:100vh;overflow:hidden}
@@ -26,7 +75,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-prim
 /* ── Left panel ── */
 .left-panel{width:292px;min-width:200px;max-width:480px;background:var(--bg-2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative}
 .left-header{padding:14px 14px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
-.app-wordmark{font-size:12px;font-weight:500;color:var(--text-muted);letter-spacing:0.09em;text-transform:uppercase;margin-bottom:10px}
+.app-wordmark{font-size:12px;font-weight:500;color:var(--text-muted);letter-spacing:0.09em;text-transform:uppercase}
+.header-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.theme-toggle{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-md);background:var(--bg-3);color:var(--text-secondary);border-radius:var(--radius-sm);cursor:pointer;flex-shrink:0;transition:all 0.13s}
+.theme-toggle:hover{background:var(--bg-4);border-color:var(--border-strong);color:var(--accent)}
+.theme-toggle svg{width:13px;height:13px}
+.theme-toggle .icon-sun,.theme-toggle .icon-moon{display:none}
+[data-theme="light"] .theme-toggle .icon-sun{display:block}
+[data-theme="dark"] .theme-toggle .icon-moon{display:block}
 
 /* ── Repo pill ── */
 .repo-pill{display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--bg-3);border:1px solid var(--border-md);border-radius:var(--radius);cursor:pointer;transition:background 0.13s,border-color 0.13s;user-select:none;margin-bottom:10px}
@@ -131,33 +187,33 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-prim
   position:absolute;width:240px;
   background:var(--bg-2);border:1px solid var(--border-md);border-radius:var(--radius);
   pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;
-  box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:border-color 0.15s,box-shadow 0.15s;
+  box-shadow:var(--shadow-card);transition:border-color 0.15s,box-shadow 0.15s;
   overflow:hidden;
 }
-.node-card:hover{border-color:var(--border-strong);box-shadow:0 6px 20px rgba(0,0,0,0.4)}
+.node-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-card-hover)}
 .node-card.is-upstream  {border-left:3px solid var(--up-color)}
 .node-card.is-downstream{border-left:3px solid var(--down-color)}
 .node-card.is-both      {border-left:3px solid var(--accent)}
-.node-card.is-focus     {border:2px solid var(--accent);background:var(--accent-dim2);box-shadow:0 0 0 3px rgba(212,169,106,0.1),0 6px 20px rgba(0,0,0,0.4);z-index:50}
-.node-card.is-selfloop  {border-top:2px dashed rgba(212,169,106,0.5)}
+.node-card.is-focus     {border:2px solid var(--accent);background:var(--accent-dim2);box-shadow:0 0 0 3px rgba(var(--accent-rgb),var(--ring-alpha)),var(--shadow-card-hover);z-index:50}
+.node-card.is-selfloop  {border-top:2px dashed rgba(var(--accent-rgb),0.5)}
 /* dev mode width variants */
 .node-card.dev-obj-card  {width:250px}
 .node-card.dev-table-card{width:210px}
-.node-card.dev-focus-card{width:260px;border:2px solid var(--accent);background:var(--accent-dim2);box-shadow:0 0 0 3px rgba(212,169,106,0.1),0 8px 24px rgba(0,0,0,0.5);z-index:50}
+.node-card.dev-focus-card{width:260px;border:2px solid var(--accent);background:var(--accent-dim2);box-shadow:0 0 0 3px rgba(var(--accent-rgb),var(--ring-alpha)),var(--shadow-dev-focus);z-index:50}
 
 .nc-header{padding:9px 12px 7px;flex-shrink:0}
 .nc-dir-row{display:flex;align-items:center;margin-bottom:4px;gap:4px;flex-wrap:wrap}
 .nc-dir-badge{font-size:9px;font-weight:500;padding:2px 7px;border-radius:10px;letter-spacing:0.03em;white-space:nowrap}
-.nc-dir-badge.upstream   {background:rgba(77,158,117,0.1);color:var(--up-color);border:1px solid rgba(77,158,117,0.2)}
-.nc-dir-badge.downstream {background:var(--info-dim);color:var(--down-color);border:1px solid rgba(90,143,196,0.2)}
-.nc-dir-badge.focus      {background:var(--accent-dim);color:var(--accent);border:1px solid rgba(212,169,106,0.25)}
-.nc-dir-badge.both       {background:rgba(255,255,255,0.04);color:var(--text-muted);border:1px solid var(--border-md)}
-.nc-dir-badge.selfloop   {background:rgba(212,169,106,0.08);color:var(--accent);border:1px solid rgba(212,169,106,0.2)}
-.nc-dir-badge.dev-view   {background:var(--info-dim);color:var(--info);border:1px solid rgba(90,143,196,0.25)}
-.nc-dir-badge.dev-proc   {background:var(--accent-dim);color:var(--accent);border:1px solid rgba(212,169,106,0.25)}
-.nc-dir-badge.dev-table  {background:var(--verified-dim);color:var(--verified);border:1px solid rgba(77,158,117,0.2)}
-.nc-dir-badge.no-src     {background:rgba(192,83,74,0.08);color:var(--danger);border:1px solid rgba(192,83,74,0.2)}
-.nc-dir-badge.no-tgt     {background:rgba(90,143,196,0.08);color:var(--info);border:1px solid rgba(90,143,196,0.2)}
+.nc-dir-badge.upstream   {background:rgba(var(--up-rgb),0.1);color:var(--up-color);border:1px solid rgba(var(--up-rgb),0.2)}
+.nc-dir-badge.downstream {background:var(--info-dim);color:var(--down-color);border:1px solid rgba(var(--down-rgb),0.2)}
+.nc-dir-badge.focus      {background:var(--accent-dim);color:var(--accent);border:1px solid rgba(var(--accent-rgb),0.25)}
+.nc-dir-badge.both       {background:rgba(var(--border-rgb),0.05);color:var(--text-muted);border:1px solid var(--border-md)}
+.nc-dir-badge.selfloop   {background:rgba(var(--accent-rgb),0.08);color:var(--accent);border:1px solid rgba(var(--accent-rgb),0.2)}
+.nc-dir-badge.dev-view   {background:var(--info-dim);color:var(--info);border:1px solid rgba(var(--info-rgb),0.25)}
+.nc-dir-badge.dev-proc   {background:var(--accent-dim);color:var(--accent);border:1px solid rgba(var(--accent-rgb),0.25)}
+.nc-dir-badge.dev-table  {background:var(--verified-dim);color:var(--verified);border:1px solid rgba(var(--verified-rgb),0.2)}
+.nc-dir-badge.no-src     {background:rgba(var(--danger-rgb),0.08);color:var(--danger);border:1px solid rgba(var(--danger-rgb),0.2)}
+.nc-dir-badge.no-tgt     {background:rgba(var(--info-rgb),0.08);color:var(--info);border:1px solid rgba(var(--info-rgb),0.2)}
 
 .nc-name{font-size:12px;font-weight:600;color:var(--text-primary);font-family:var(--mono);line-height:1.45;word-break:break-all}
 .is-focus .nc-name,.dev-focus-card .nc-name{color:var(--accent)}
@@ -183,7 +239,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-prim
 /* ── Overlays ── */
 .focus-crumb{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--border-md);border-radius:var(--radius-sm);padding:5px 14px;font-size:11px;color:var(--text-secondary);z-index:20;pointer-events:none;white-space:nowrap;max-width:55%;overflow:hidden;text-overflow:ellipsis;display:none}
 .focus-crumb strong{color:var(--accent);font-family:var(--mono);font-weight:500}
-.dev-banner{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(90,143,196,0.12);border:1px solid rgba(90,143,196,0.3);border-radius:var(--radius-sm);padding:5px 14px;font-size:11px;color:var(--info);z-index:20;pointer-events:none;white-space:nowrap;display:none;align-items:center;gap:6px}
+.dev-banner{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(var(--info-rgb),0.12);border:1px solid rgba(var(--info-rgb),0.3);border-radius:var(--radius-sm);padding:5px 14px;font-size:11px;color:var(--info);z-index:20;pointer-events:none;white-space:nowrap;display:none;align-items:center;gap:6px}
 .dev-banner strong{font-family:var(--mono);font-weight:500}
 
 /* ── Legend ── */
@@ -192,12 +248,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-prim
 .legend-stripe{width:4px;height:14px;border-radius:2px;flex-shrink:0}
 .legend-line{width:20px;height:2px;border-radius:1px;flex-shrink:0;position:relative}
 .legend-line::after{content:'▶';position:absolute;right:-2px;top:50%;transform:translateY(-50%);font-size:7px;line-height:1}
-.legend-dash{width:20px;height:2px;flex-shrink:0;border-top:2px dashed rgba(212,169,106,0.5)}
+.legend-dash{width:20px;height:2px;flex-shrink:0;border-top:2px dashed rgba(var(--accent-rgb),0.5)}
 
 /* ── Minimap ── */
 .minimap{position:absolute;bottom:16px;right:14px;width:170px;height:110px;background:var(--bg-2);border:1px solid var(--border-md);border-radius:var(--radius);overflow:hidden;z-index:20}
 #minimapCanvas{display:block;width:100%;height:100%}
-.minimap-finder{position:absolute;border:1.5px solid var(--accent);background:rgba(212,169,106,0.07);pointer-events:none;border-radius:2px}
+.minimap-finder{position:absolute;border:1.5px solid var(--accent);background:rgba(var(--accent-rgb),0.1);pointer-events:none;border-radius:2px}
 
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
@@ -220,7 +276,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-prim
     </div>
 
     <div class="left-header">
-      <div class="app-wordmark">Lineage Explorer</div>
+      <div class="header-top-row">
+        <div class="app-wordmark">Lineage Explorer</div>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch theme" aria-label="Switch between light and dark theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
 
       <!-- Active repo pill -->
       <div class="repo-pill" id="repoPill" onclick="toggleSwitcher()">
@@ -445,14 +507,42 @@ const client = new GrpcClient(CONFIG.serviceUrl);
 // The REPOS array also carries UI-only colour assignments (client-side only).
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Palette for repo colour coding — assigned by arrival index, never sent to server
-const REPO_COLORS = [
-  { color:'#d4a96a', dim:'rgba(212,169,106,0.15)' },
-  { color:'#7a9ec4', dim:'rgba(122,158,196,0.15)' },
-  { color:'#8ecfa8', dim:'rgba(142,207,168,0.15)' },
-  { color:'#c47a7a', dim:'rgba(196,122,122,0.15)' },
-  { color:'#a48eca', dim:'rgba(164,142,202,0.15)' },
-];
+// Palette for repo colour coding — assigned by arrival index, never sent to server.
+// Pulled from CSS custom properties (--repo-1..5) rather than hardcoded, so the
+// five repo colours automatically re-derive when the theme toggles.
+function repoColorPalette() {
+  const cs = getComputedStyle(document.documentElement);
+  return [1,2,3,4,5].map(i => ({
+    color: cs.getPropertyValue(`--repo-${i}`).trim(),
+    dim:   cs.getPropertyValue(`--repo-${i}-dim`).trim(),
+  }));
+}
+
+// Re-derive every repo's color/dim from the current theme's palette, then
+// refresh whatever UI is currently showing them. Called once after repos load
+// and again on every theme toggle.
+function applyRepoPalette() {
+  const pal = repoColorPalette();
+  REPOS.forEach(r => { r.color = pal[r.paletteIndex].color; r.dim = pal[r.paletteIndex].dim; });
+  if (activeRepo) renderRepoPill();
+  if (switcherOpen) renderSwitcherList();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// THEME — light/dark are both driven entirely by CSS custom properties.
+// Toggling just flips the data-theme attribute, then refreshes the two things
+// that cache resolved colors in JS rather than re-reading CSS live: the
+// per-repo palette (applyRepoPalette) and the canvas-drawn graph (render).
+// ══════════════════════════════════════════════════════════════════════════════
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  applyRepoPalette();
+  render();
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'light' ? 'dark' : 'light');
+}
 
 // Live arrays — mutated by loadRepos() and loadLineage()
 let REPOS = [];  // { id, label, type, host, repoVersion, color, dim }
@@ -510,18 +600,17 @@ function protoDetailToInternal(detail) {
 
 async function loadRepos() {
   const res = await client.getRepos();
-  REPOS = (res.repos || []).map((r, i) => {
-    const palette = REPO_COLORS[i % REPO_COLORS.length];
-    return {
-      id:          r.name,
-      label:       r.name,
-      type:        (r.databaseType || '').replace('DATABASE_TYPE_', '').toLowerCase() || 'unknown',
-      host:        r.host || '',
-      repoVersion: r.repoVersion || '',
-      color:       palette.color,
-      dim:         palette.dim,
-    };
-  });
+  REPOS = (res.repos || []).map((r, i) => ({
+    id:           r.name,
+    label:        r.name,
+    type:         (r.databaseType || '').replace('DATABASE_TYPE_', '').toLowerCase() || 'unknown',
+    host:         r.host || '',
+    repoVersion:  r.repoVersion || '',
+    paletteIndex: i % 5,
+    color:        '', // filled in by applyRepoPalette()
+    dim:          '',
+  }));
+  applyRepoPalette();
 }
 
 async function loadLineage(repoName) {
@@ -1101,6 +1190,20 @@ function _doRender() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   nl.innerHTML='';
 
+  // Snapshot the active theme's colors once per frame — cheap, and avoids a
+  // getComputedStyle call for every single edge/dot drawn below.
+  const cs = getComputedStyle(document.documentElement);
+  const theme = {
+    up:        cs.getPropertyValue('--up-color').trim(),
+    down:      cs.getPropertyValue('--down-color').trim(),
+    accent:    cs.getPropertyValue('--accent').trim(),
+    accentRgb: cs.getPropertyValue('--accent-rgb').trim(),
+    borderRgb: cs.getPropertyValue('--border-rgb').trim(),
+    downRgb:   cs.getPropertyValue('--down-rgb').trim(),
+    mmBaseA:   cs.getPropertyValue('--minimap-base-alpha').trim(),
+    mmObjA:    cs.getPropertyValue('--minimap-obj-alpha').trim(),
+  };
+
   const empty=document.getElementById('emptyState');
   const crumb=document.getElementById('focusCrumb');
   const devB =document.getElementById('devBanner');
@@ -1144,20 +1247,20 @@ function _doRender() {
       drawEdgeCanvas(ctx,sp,tp,NODE_W_NORMAL,heights[fromName]||80,heights[toName]||80,color,alpha,dashed);
     }
 
-    upEdges.forEach(e   =>{ if(e.from&&e.to&&e.from!==e.to) edge(e.from,e.to,'#4d9e75',0.6,false); });
-    downEdges.forEach(e =>{ if(e.from&&e.to&&e.from!==e.to) edge(e.from,e.to,'#5a8fc4',0.6,false); });
-    selfLoopEdges.forEach(e=>{ const p=positions[e.from]; if(p) drawSelfLoop(ctx,{x:p.x+ox,y:p.y+oy},NODE_W_NORMAL,heights[e.from]||80,'#d4a96a'); });
+    upEdges.forEach(e   =>{ if(e.from&&e.to&&e.from!==e.to) edge(e.from,e.to,theme.up,0.6,false); });
+    downEdges.forEach(e =>{ if(e.from&&e.to&&e.from!==e.to) edge(e.from,e.to,theme.down,0.6,false); });
+    selfLoopEdges.forEach(e=>{ const p=positions[e.from]; if(p) drawSelfLoop(ctx,{x:p.x+ox,y:p.y+oy},NODE_W_NORMAL,heights[e.from]||80,theme.accent); });
 
     // Orphan source-only edges (to===null): draw a small dashed line from node
     [...upEdges,...downEdges].forEach(e=>{
       if(e.from===null&&e.to){
         const tp=positions[e.to]; if(!tp) return;
-        ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle='#888'; ctx.globalAlpha=0.4; ctx.lineWidth=1.5;
+        ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle=`rgb(${theme.borderRgb})`; ctx.globalAlpha=0.45; ctx.lineWidth=1.5;
         ctx.beginPath(); ctx.moveTo(tp.x+ox-40, tp.y+oy+(heights[e.to]||80)/2); ctx.lineTo(tp.x+ox, tp.y+oy+(heights[e.to]||80)/2); ctx.stroke(); ctx.restore();
       }
       if(e.to===null&&e.from){
         const fp=positions[e.from]; if(!fp) return;
-        ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle='#888'; ctx.globalAlpha=0.4; ctx.lineWidth=1.5;
+        ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle=`rgb(${theme.borderRgb})`; ctx.globalAlpha=0.45; ctx.lineWidth=1.5;
         ctx.beginPath(); ctx.moveTo(fp.x+NODE_W_NORMAL+ox, fp.y+oy+(heights[e.from]||80)/2); ctx.lineTo(fp.x+NODE_W_NORMAL+40+ox, fp.y+oy+(heights[e.from]||80)/2); ctx.stroke(); ctx.restore();
       }
     });
@@ -1176,7 +1279,7 @@ function _doRender() {
     });
 
     document.getElementById('leg-selfloop-row').style.display=selfLoopEdges.length?'flex':'none';
-    drawMinimap(positions, heights, ox, oy, NODE_W_NORMAL, null, focusNode);
+    drawMinimap(positions, heights, ox, oy, NODE_W_NORMAL, null, focusNode, theme);
 
   } else {
     // ── DEV MODE ──
@@ -1221,7 +1324,7 @@ function _doRender() {
     // Draw edges
     allEdges.forEach(e=>{
       const s=positions[e.from], t=positions[e.to]; if(!s||!t) return;
-      const color=depIds.has(e.from)?'#4d9e75':'#5a8fc4';
+      const color=depIds.has(e.from)?theme.up:theme.down;
       const sp={x:s.x+ox,y:s.y+oy}, tp={x:t.x+ox,y:t.y+oy};
       drawEdgeCanvas(ctx,sp,tp,cardW(e.from),heights[e.from]||80,heights[e.to]||80,color,0.6,false);
     });
@@ -1230,7 +1333,7 @@ function _doRender() {
     selfLoopTables.forEach(tbl=>{
       const tid=TID(tbl);
       const p=positions[tid]; if(!p) return;
-      drawSelfLoop(ctx,{x:p.x+ox,y:p.y+oy},NODE_W_DEV_TABLE,heights[tid]||80,'#d4a96a');
+      drawSelfLoop(ctx,{x:p.x+ox,y:p.y+oy},NODE_W_DEV_TABLE,heights[tid]||80,theme.accent);
     });
 
     // Place cards
@@ -1259,14 +1362,14 @@ function _doRender() {
     });
 
     document.getElementById('leg-selfloop-row').style.display=selfLoopTables.size?'flex':'none';
-    drawMinimap(positions,heights,ox,oy,NODE_W_DEV_OBJ,focusId,null);
+    drawMinimap(positions,heights,ox,oy,NODE_W_DEV_OBJ,focusId,null,theme);
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MINIMAP
 // ══════════════════════════════════════════════════════════════════════════════
-function drawMinimap(positions, heights, ox, oy, defaultW, focusId, focusName) {
+function drawMinimap(positions, heights, ox, oy, defaultW, focusId, focusName, theme) {
   const mcan=document.getElementById('minimapCanvas');
   const mctx=mcan.getContext('2d');
   const finder=document.getElementById('minimapFinder');
@@ -1293,8 +1396,8 @@ function drawMinimap(positions, heights, ox, oy, defaultW, focusId, focusName) {
     const h=allH[id]||80;
     const isFoc = (focusId&&id===focusId)||(focusName&&id===focusName);
     const isObj = isOID&&isOID(id);
-    mctx.fillStyle=isFoc?'rgba(212,169,106,0.75)':isObj?'rgba(90,143,196,0.3)':'rgba(255,255,255,0.12)';
-    if(isFoc){mctx.shadowColor='rgba(212,169,106,0.5)';mctx.shadowBlur=4;}
+    mctx.fillStyle=isFoc?`rgba(${theme.accentRgb},0.75)`:isObj?`rgba(${theme.downRgb},${theme.mmObjA})`:`rgba(${theme.borderRgb},${theme.mmBaseA})`;
+    if(isFoc){mctx.shadowColor=`rgba(${theme.accentRgb},0.5)`;mctx.shadowBlur=4;}
     mctx.fillRect(offX+(p.x-ox-minX+ox)*scale, offY+(p.y-oy-minY+oy)*scale, (defaultW||240)*scale, h*scale);
     mctx.shadowBlur=0;
   });
