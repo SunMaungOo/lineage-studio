@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"strings"
 
 	_ "github.com/microsoft/go-mssqldb"
@@ -82,9 +83,17 @@ func getObjectInfos(credential Credential, host HostInfo, objectInfoSql string, 
 
 	var objects []ObjectInfo
 
-	connectionString := fmt.Sprintf("sqlserver://%v:%v@%v?database=%v", credential.User, credential.Password, host.Host, host.Database)
+	query := url.Values{}
+	query.Set("database", host.Database)
 
-	db, err := sql.Open("sqlserver", connectionString)
+	connectionString := url.URL{
+		Scheme:   "sqlserver",
+		User:     url.UserPassword(credential.User, credential.Password),
+		Host:     host.Host,
+		RawQuery: query.Encode(),
+	}
+
+	db, err := sql.Open("sqlserver", connectionString.String())
 
 	if err != nil {
 		return nil, err
