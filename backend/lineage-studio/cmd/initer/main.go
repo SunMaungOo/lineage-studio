@@ -19,8 +19,9 @@ type config struct {
 }
 
 type initRequest struct {
-	Uri  string `json:"uri"`
-	Name string `json:"name"`
+	Uri       string `json:"uri"`
+	Name      string `json:"name"`
+	Overwrite bool   `json:"overwrite,omitempty"`
 }
 
 type initResponse struct {
@@ -122,7 +123,7 @@ func initEndPoint(repoLocation string) func(http.ResponseWriter, *http.Request) 
 			DB:   hostInfo.Database,
 		}, views, procedures)
 
-		err = repo.SaveRepo(repoLocation, initRepo, false)
+		err = repo.SaveRepo(repoLocation, initRepo, request.Overwrite)
 
 		if err != nil {
 
