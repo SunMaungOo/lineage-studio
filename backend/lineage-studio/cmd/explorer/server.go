@@ -150,7 +150,7 @@ func (server LineageExplorerServer) GetLineage(context context.Context, request 
 
 	if currentVersion != remoteVersion {
 
-		err = git.GitPull(repoLocation)
+		err = git.GitPull(repoDirPath)
 
 		if err != nil {
 			return nil, err
