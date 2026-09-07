@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/SunMaungOo/lineage-studio/internal/editor"
@@ -14,6 +14,8 @@ import (
 	"github.com/SunMaungOo/lineage-studio/internal/repo"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const maxPushRetries = 3
 
 type repoLock struct {
 	mutex sync.Mutex
@@ -51,6 +53,27 @@ type LineageStudioServer struct {
 	WriteLocks   *repoLock
 }
 
+func refreshIfStale(repoDirPath string, remoteName string) error {
+
+	currentVersion, err := git.GitHeadCommit(repoDirPath)
+
+	if err != nil {
+		return err
+	}
+
+	remoteVersion, err := git.GitRemoteHeadCommit(repoDirPath, remoteName)
+
+	if err != nil {
+		return err
+	}
+
+	if currentVersion == remoteVersion {
+		return nil
+	}
+
+	return git.GitPull(repoDirPath)
+}
+
 func (server LineageStudioServer) getRepoSummary() ([]*lineage_studio.RepoSummary, error) {
 
 	repos := []*lineage_studio.RepoSummary{}
@@ -64,6 +87,10 @@ func (server LineageStudioServer) getRepoSummary() ([]*lineage_studio.RepoSummar
 	for _, folderName := range folderNames {
 
 		repoDirPath := filepath.Join(server.RepoLocation, folderName)
+
+		if err := refreshIfStale(repoDirPath, server.RemoteName); err != nil {
+			return nil, err
+		}
 
 		metadata, err := repo.LoadMetadata(repoDirPath)
 
@@ -132,13 +159,17 @@ func (server LineageStudioServer) GetObjects(context context.Context, request *c
 
 	repoName := request.Msg.RepoName
 
+	repoDirPath := filepath.Join(repoLocation, repoName)
+
+	if err := refreshIfStale(repoDirPath, server.RemoteName); err != nil {
+		return nil, err
+	}
+
 	initRepo, err := repo.LoadRepo(repoLocation, repoName)
 
 	if err != nil {
 		return nil, err
 	}
-
-	repoDirPath := filepath.Join(repoLocation, repoName)
 
 	repoVersion, err := git.GitHeadCommit(repoDirPath)
 
@@ -164,6 +195,10 @@ func (server LineageStudioServer) GetObject(context context.Context, request *co
 	objectName := request.Msg.ObjectName
 
 	repoDirPath := filepath.Join(repoLocation, repoName)
+
+	if err := refreshIfStale(repoDirPath, server.RemoteName); err != nil {
+		return nil, err
+	}
 
 	var objectDetail repo.ObjectDetail
 
@@ -202,6 +237,12 @@ func (server LineageStudioServer) GetObject(context context.Context, request *co
 
 // Get history timeline of single object in the repo
 func (server LineageStudioServer) GetObjectHistory(context context.Context, request *connect.Request[lineage_studio.GetObjectHistoryRequest]) (*connect.Response[lineage_studio.GetObjectHistoryResponse], error) {
+
+	repoDirPath := filepath.Join(server.RepoLocation, request.Msg.RepoName)
+
+	if err := refreshIfStale(repoDirPath, server.RemoteName); err != nil {
+		return nil, err
+	}
 
 	objectDetails, err := repo.GetObjectInfoByName(server.RepoLocation, request.Msg.RepoName, request.Msg.ObjectName)
 
@@ -277,7 +318,7 @@ func getConflictVerifyLineageResponse(repoLocation string, repoName string, curr
 
 }
 
-func getConflictChangeLineageResponse(repoLocation string, repoName string, currentRepoVersion string, newRepoVersion string, objectName string) (*lineage_studio.ChangeLineageResponse, error) {
+func getConflictChangeLineageResponse(repoLocation string, repoName string, currentRepoVersion string, objectName string) (*lineage_studio.ChangeLineageResponse, error) {
 
 	currentObj, err := repo.GetCurrentObjectInfo(repoLocation, repoName, objectName)
 
@@ -294,9 +335,128 @@ func getConflictChangeLineageResponse(repoLocation string, repoName string, curr
 
 	return &lineage_studio.ChangeLineageResponse{
 		Status:         lineage_studio.WriteStatus_WRITE_STATUS_CONFLICT,
-		NewRepoVersion: newRepoVersion,
+		NewRepoVersion: currentRepoVersion,
 		Conflict:       &conflictDetail,
 	}, nil
+
+}
+
+func objectChangedSince(repoLocation string, repoName string, objectName string, fromVersion string, toVersion string) bool {
+
+	if fromVersion == toVersion {
+		return false
+	}
+
+	if fromVersion == "" {
+		return true
+	}
+
+	before, err := repo.GetObjectInfo(repoLocation, repoName, objectName, fromVersion)
+
+	if err != nil {
+		return true
+	}
+
+	after, err := repo.GetCurrentObjectInfo(repoLocation, repoName, objectName)
+
+	if err != nil {
+		return true
+	}
+
+	return before.Object.Hash != after.Object.Hash
+}
+
+func saveCommitPushWithRetry(repoLocation string,
+	repoName string,
+	remoteName string,
+	objectName string,
+	commitMessage string,
+	clientVersion string,
+	mutate func(baseRepo *repo.Repo) (repo.Repo, error)) (repo.Repo, string, bool, error) {
+
+	repoDirPath := filepath.Join(repoLocation, repoName)
+
+	for attempt := 0; attempt < maxPushRetries; attempt++ {
+
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+		}
+
+		baseVersion, err := git.GitHeadCommit(repoDirPath)
+
+		if err != nil {
+			return repo.Repo{}, "", false, err
+		}
+
+		if attempt == 0 && objectChangedSince(repoLocation, repoName, objectName, clientVersion, baseVersion) {
+			return repo.Repo{}, baseVersion, true, nil
+		}
+
+		baseRepo, err := repo.LoadRepo(repoLocation, repoName)
+
+		if err != nil {
+			return repo.Repo{}, "", false, err
+		}
+
+		baseDetail, err := baseRepo.GetCurrentObjectInfo(objectName)
+
+		if err != nil {
+			return repo.Repo{}, "", false, err
+		}
+
+		mutated, err := mutate(&baseRepo)
+
+		if err != nil {
+			return repo.Repo{}, "", false, err
+		}
+
+		if err := repo.SaveRepo(repoLocation, mutated, true); err != nil {
+			_ = git.GitResetHard(repoDirPath, baseVersion)
+			return repo.Repo{}, "", false, err
+		}
+
+		pushErr := git.GitAddAllCommitAndPush(repoDirPath, commitMessage, remoteName)
+
+		if pushErr == nil {
+
+			pushedVersion, err := git.GitHeadCommit(repoDirPath)
+
+			return mutated, pushedVersion, false, err
+		}
+
+		if err := git.GitResetHard(repoDirPath, baseVersion); err != nil {
+			return repo.Repo{}, "", false, fmt.Errorf("push failed (%v) and reset failed: %v", pushErr, err)
+		}
+
+		if err := git.GitPull(repoDirPath); err != nil {
+			return repo.Repo{}, "", false, fmt.Errorf("push failed (%v) and pull failed: %v", pushErr, err)
+		}
+
+		pulledVersion, err := git.GitHeadCommit(repoDirPath)
+
+		if err != nil {
+			return repo.Repo{}, "", false, err
+		}
+
+		afterPullRepo, err := repo.LoadRepo(repoLocation, repoName)
+
+		if err != nil {
+			return repo.Repo{}, "", false, err
+		}
+
+		afterDetail, err := afterPullRepo.GetCurrentObjectInfo(objectName)
+
+		if err != nil {
+			return repo.Repo{}, "", false, err
+		}
+
+		if afterDetail.Object.Hash != baseDetail.Object.Hash {
+
+			return repo.Repo{}, pulledVersion, true, nil
+		}
+	}
+
+	return repo.Repo{}, "", false, fmt.Errorf("gave up pushing to %q after %d attempts due to repeated concurrent writes", remoteName, maxPushRetries)
 
 }
 
@@ -310,93 +470,39 @@ func (server LineageStudioServer) VerifyObjectLineage(context context.Context, r
 
 	objectName := request.Msg.ObjectName
 
-	repoDirPath := filepath.Join(repoLocation, repoName)
-
 	lock := server.WriteLocks.Accquire(repoName)
 
 	defer lock.Unlock()
 
 	clientVersion := request.Msg.RepoVersion
 
-	currentRepoVersion, err := git.GitHeadCommit(repoDirPath)
-
-	if err != nil {
-
-		return nil, err
-	}
-
-	if clientVersion != currentRepoVersion {
-
-		conflictResponse, err := getConflictVerifyLineageResponse(repoLocation, repoName, currentRepoVersion, objectName)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return connect.NewResponse(conflictResponse), nil
-	}
-
-	initRepo, err := repo.LoadRepo(repoLocation, repoName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	remoteHead, err := git.GitRemoteHeadCommit(repoDirPath, remoteName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// should return the status which make the client called refresh repo because it is dirty
-
-	if currentRepoVersion != remoteHead {
-
-		conflictResponse, err := getConflictVerifyLineageResponse(repoLocation, repoName, currentRepoVersion, objectName)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return connect.NewResponse(conflictResponse), nil
-
-	}
-
-	newRepo, err := editor.VerifyLineage(&initRepo, objectName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// save the repo
-
-	err = repo.SaveRepo(repoLocation, newRepo, true)
-
-	if err != nil {
-		//restore to previous state
-
-		err = git.GitResetHard(repoDirPath, currentRepoVersion)
-
-		return nil, err
-	}
-
 	commitMessage := fmt.Sprintf("verify lineage on %v", objectName)
 
-	err = git.GitAddAllCommitAndPush(repoDirPath, commitMessage, remoteName)
+	_, newRepoVersion, conflict, err := saveCommitPushWithRetry(
+		repoLocation,
+		repoName,
+		remoteName,
+		objectName,
+		commitMessage,
+		clientVersion,
+		func(baseRepo *repo.Repo) (repo.Repo, error) {
+			return editor.VerifyLineage(baseRepo, objectName)
+		},
+	)
 
 	if err != nil {
-
-		log.Fatal(err)
-
-		err = git.GitResetHard(repoDirPath, currentRepoVersion)
-
 		return nil, err
 	}
 
-	newRepoVersion, err := git.GitHeadCommit(repoDirPath)
+	if conflict {
 
-	if err != nil {
-		return nil, err
+		conflictResponse, err := getConflictVerifyLineageResponse(repoLocation, repoName, newRepoVersion, objectName)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return connect.NewResponse(conflictResponse), nil
 	}
 
 	response := lineage_studio.VerifyObjectLineageResponse{
@@ -421,91 +527,37 @@ func (server LineageStudioServer) ChangeLineage(context context.Context, request
 
 	clientVersion := request.Msg.RepoVersion
 
-	repoDirPath := filepath.Join(repoLocation, repoName)
-
 	lock := server.WriteLocks.Accquire(repoName)
 
 	defer lock.Unlock()
 
-	currentRepoVersion, err := git.GitHeadCommit(repoDirPath)
+	commitMessage := fmt.Sprintf("change lineage on %v", objectName)
+
+	newRepo, newRepoVersion, conflict, err := saveCommitPushWithRetry(
+		repoLocation,
+		repoName,
+		remoteName,
+		objectName,
+		commitMessage,
+		clientVersion,
+		func(baseRepo *repo.Repo) (repo.Repo, error) {
+			return editor.ChangeLineage(baseRepo, objectName, lineage)
+		},
+	)
 
 	if err != nil {
-
 		return nil, err
 	}
 
-	if clientVersion != currentRepoVersion {
+	if conflict {
 
-		conflictResponse, err := getConflictChangeLineageResponse(repoLocation, repoName, clientVersion, currentRepoVersion, objectName)
+		conflictResponse, err := getConflictChangeLineageResponse(repoLocation, repoName, newRepoVersion, objectName)
 
 		if err != nil {
 			return nil, err
 		}
 
 		return connect.NewResponse(conflictResponse), nil
-	}
-
-	initRepo, err := repo.LoadRepo(repoLocation, repoName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	remoteHead, err := git.GitRemoteHeadCommit(repoDirPath, remoteName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// should return the status which make the client called refresh repo because it is dirty
-
-	if currentRepoVersion != remoteHead {
-
-		conflictResponse, err := getConflictChangeLineageResponse(repoLocation, repoName, clientVersion, currentRepoVersion, objectName)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return connect.NewResponse(conflictResponse), nil
-
-	}
-
-	newRepo, err := editor.ChangeLineage(&initRepo, objectName, lineage)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// save the repo
-
-	err = repo.SaveRepo(repoLocation, newRepo, true)
-
-	if err != nil {
-		//restore to previous state
-
-		err = git.GitResetHard(repoDirPath, currentRepoVersion)
-
-		return nil, err
-	}
-
-	commitMessage := fmt.Sprintf("verify lineage on %v", objectName)
-
-	err = git.GitAddAllCommitAndPush(repoDirPath, commitMessage, remoteName)
-
-	if err != nil {
-
-		log.Fatal(err)
-
-		err = git.GitResetHard(repoDirPath, currentRepoVersion)
-
-		return nil, err
-	}
-
-	newRepoVersion, err := git.GitHeadCommit(repoDirPath)
-
-	if err != nil {
-		return nil, err
 	}
 
 	updatedObjectDetail, err := newRepo.GetCurrentObjectInfo(objectName)
